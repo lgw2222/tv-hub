@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#232833">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>TV Remote</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📺</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --shell:#232833; --key:#313745; --key-hi:#3d4454; --key-lo:#262b36;
+  --ink:#e9ebf1; --muted:#8c93a5; --line:#3a4050;
+  --roku:#a77ce0; --gtv:#5b95f7; --fire:#f0913f; --power:#ec5a5e; --ok:#3fbf7f; --warn:#e2b340;
+  --font:"Barlow Semi Condensed", "Arial Narrow", "Segoe UI", system-ui, sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: light){
+  :root{ --shell:#e6e9ef; --key:#fbfcfe; --key-hi:#ffffff; --key-lo:#d4d8e1;
+    --ink:#1e2330; --muted:#697086; --line:#cdd2dc; --roku:#7b45c2; --gtv:#2f6fe0; --fire:#c96a12; }
+}
+*,*::before,*::after{box-sizing:inherit}
+html,body{margin:0;height:100%}
+body{background:var(--shell);color:var(--ink);font-family:var(--font);font-size:17px;
+  -webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;overscroll-behavior:none}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--gtv);outline-offset:2px}
+.wrap{max-width:440px;margin:0 auto;padding:10px 16px 28px}
+
+/* header */
+header{display:flex;align-items:center;justify-content:space-between;padding:6px 2px 10px}
+header h1{font-size:22px;font-weight:700;margin:0;letter-spacing:.2px}
+.iconbtn{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:var(--key)}
+.iconbtn svg{width:22px;height:22px}
+
+/* TV picker */
+.picker{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 10px;scrollbar-width:none}
+.picker::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:999px;
+  background:var(--key);border:2px solid transparent;font-weight:600;font-size:16px;white-space:nowrap}
+.chip .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.chip .dot.on{background:var(--ok)} .chip .dot.sleep{background:var(--warn)} .chip .dot.off{background:var(--power)}
+.chip[aria-pressed="true"]{border-color:var(--c,var(--ink))}
+.chip.roku{--c:var(--roku)} .chip.googletv{--c:var(--gtv)} .chip.firetv{--c:var(--fire)}
+.chip.all{--c:var(--ink)}
+.multi{display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-size:15px;padding:0 4px 14px}
+.switch{display:flex;align-items:center;gap:10px}
+.track{width:40px;height:24px;border-radius:12px;background:var(--key-lo);position:relative;transition:background .15s}
+.track::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--muted);transition:transform .15s,background .15s}
+.switch[aria-checked="true"] .track{background:var(--gtv)}
+.switch[aria-checked="true"] .track::after{transform:translateX(16px);background:#fff}
+.target{font-weight:600;color:var(--ink)}
+
+/* keys */
+.key{background:var(--key);border-radius:16px;min-height:56px;display:grid;place-items:center;font-weight:600;font-size:15px;
+  box-shadow:inset 0 1px 0 var(--key-hi),0 2px 0 var(--key-lo);transition:transform .06s}
+.key:active,.key.pressed{transform:translateY(2px);box-shadow:inset 0 1px 0 var(--key-hi)}
+.key svg{width:24px;height:24px}
+.row{display:grid;gap:10px;margin-bottom:10px}
+.r3{grid-template-columns:repeat(3,1fr)}
+.power{color:var(--power)}
+.label{display:flex;flex-direction:column;align-items:center;gap:2px}
+.label small{font-size:12px;color:var(--muted);font-weight:500}
+
+/* d-pad: the one bold element */
+.dpad{position:relative;width:min(280px,76vw);aspect-ratio:1;margin:18px auto 22px;border-radius:50%;
+  background:conic-gradient(from 45deg,var(--key) 0 25%,var(--key-hi) 0 25.3%,var(--key) 0 50%,var(--key-hi) 0 50.3%,var(--key) 0 75%,var(--key-hi) 0 75.3%,var(--key) 0 99.7%,var(--key-hi) 0);
+  box-shadow:inset 0 2px 0 var(--key-hi),0 4px 0 var(--key-lo),0 0 0 6px var(--key-lo)}
+.dpad button{position:absolute;display:grid;place-items:center;color:var(--muted)}
+.dpad button svg{width:30px;height:30px}
+.dpad .up{top:0;left:25%;width:50%;height:30%}
+.dpad .down{bottom:0;left:25%;width:50%;height:30%}
+.dpad .left{left:0;top:25%;width:30%;height:50%}
+.dpad .right{right:0;top:25%;width:30%;height:50%}
+.dpad .dir:active svg,.dpad .dir.pressed svg{color:var(--ink);transform:scale(.9)}
+.dpad .ok{top:31%;left:31%;width:38%;height:38%;border-radius:50%;background:var(--shell);color:var(--ink);font-weight:700;font-size:20px;
+  box-shadow:inset 0 3px 6px var(--key-lo),0 0 0 2px var(--line)}
+.dpad .ok:active,.dpad .ok.pressed{box-shadow:inset 0 5px 10px var(--key-lo),0 0 0 2px var(--line);transform:scale(.97)}
+
+/* volume rocker */
+.media{display:grid;grid-template-columns:72px 1fr;gap:10px;margin-bottom:10px}
+.rocker{display:grid;grid-template-rows:1fr auto 1fr;background:var(--key);border-radius:16px;overflow:hidden;
+  box-shadow:inset 0 1px 0 var(--key-hi),0 2px 0 var(--key-lo)}
+.rocker button{min-height:58px;display:grid;place-items:center;font-size:26px;font-weight:600}
+.rocker button:active,.rocker button.pressed{background:var(--key-lo)}
+.rocker span{text-align:center;font-size:12px;color:var(--muted);padding:2px 0}
+.media .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+
+/* sections */
+h2{font-size:15px;font-weight:600;color:var(--muted);margin:22px 4px 10px}
+.apps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.app{background:var(--key);border-radius:12px;padding:14px 6px;font-weight:600;font-size:15px;text-align:center;
+  box-shadow:inset 0 1px 0 var(--key-hi),0 2px 0 var(--key-lo)}
+.app:active{transform:translateY(2px)}
+.app.partial{color:var(--muted)}
+.empty{color:var(--muted);font-size:15px;padding:6px 4px}
+.typer{display:flex;gap:8px}
+input,select{font:inherit;color:var(--ink);background:var(--key-lo);border:1px solid var(--line);border-radius:12px;padding:12px 14px;width:100%;-webkit-user-select:text;user-select:text}
+.btn{background:var(--ink);color:var(--shell);border-radius:12px;padding:12px 18px;font-weight:700;white-space:nowrap}
+.btn.ghost{background:var(--key);color:var(--ink)}
+.btn.danger{background:none;color:var(--power);padding:12px 8px}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;
+  background:var(--ink);color:var(--shell);padding:12px 18px;border-radius:14px;font-weight:600;max-width:90vw;text-align:center;
+  transition:opacity .2s,transform .2s;pointer-events:none;z-index:50}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast.err{background:var(--power);color:#fff}
+
+/* settings sheet */
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:40}
+.sheet.open{display:block}
+.panel{position:absolute;left:0;right:0;bottom:0;max-height:92%;overflow-y:auto;background:var(--shell);border-radius:22px 22px 0 0;
+  padding:18px 16px calc(24px + env(safe-area-inset-bottom,0px));max-width:560px;margin:0 auto;animation:up .22s ease-out}
+@keyframes up{from{transform:translateY(40px);opacity:.4}}
+@media (prefers-reduced-motion: reduce){.panel{animation:none}.key,.track::after{transition:none}}
+.panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.panel-head h3{margin:0;font-size:21px}
+.tvrow{display:flex;align-items:center;gap:10px;padding:12px;background:var(--key);border-radius:14px;margin-bottom:8px}
+.tvrow .info{flex:1;min-width:0}
+.tvrow .info b{display:block;font-size:17px}
+.tvrow .info span{color:var(--muted);font-size:14px}
+.tag{font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;color:#fff}
+.tag.roku{background:var(--roku)} .tag.googletv{background:var(--gtv)} .tag.firetv{background:var(--fire)}
+.form{display:grid;gap:10px;background:var(--key);padding:14px;border-radius:16px}
+.form label{display:grid;gap:6px;font-size:14px;color:var(--muted);font-weight:500}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--key-lo);border-radius:12px;padding:4px}
+.seg button{padding:10px 4px;font-size:15px;border-radius:9px;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--key-hi);color:var(--ink)}
+.hint{font-size:14px;color:var(--muted);line-height:1.4}
+.hint code{background:var(--key-lo);padding:1px 5px;border-radius:5px;font-size:13px}
+details summary{cursor:pointer;color:var(--ink);font-weight:600;font-size:15px}
+.actions{display:flex;gap:8px;justify-content:flex-end}
+.scanlist .tvrow{background:var(--key-lo)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>TV Remote</h1>
+    <button class="iconbtn" id="openSettings" aria-label="Manage TVs">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+    </button>
+  </header>
+
+  <div class="picker" id="picker" role="group" aria-label="Choose TVs"></div>
+  <div class="multi">
+    <button class="switch" id="multiSwitch" role="switch" aria-checked="false"><span class="track"></span>Control several</button>
+    <span>Sending to <span class="target" id="targetLabel">no TV</span></span>
+  </div>
+
+  <div class="row r3">
+    <button class="key power" data-cmd="power" aria-label="Power toggle"><span class="label">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg><small>Power</small></span></button>
+    <button class="key" data-cmd="poweron">Turn on</button>
+    <button class="key" data-cmd="poweroff">Turn off</button>
+  </div>
+
+  <div class="dpad">
+    <button class="dir up" data-cmd="up" data-repeat aria-label="Up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></button>
+    <button class="dir left" data-cmd="left" data-repeat aria-label="Left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+    <button class="ok" data-cmd="ok">OK</button>
+    <button class="dir right" data-cmd="right" data-repeat aria-label="Right"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+    <button class="dir down" data-cmd="down" data-repeat aria-label="Down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+  </div>
+
+  <div class="row r3">
+    <button class="key" data-cmd="back" aria-label="Back"><span class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><small>Back</small></span></button>
+    <button class="key" data-cmd="home" aria-label="Home"><span class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg><small>Home</small></span></button>
+    <button class="key" data-cmd="menu" aria-label="Options"><span class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg><small>Options</small></span></button>
+  </div>
+
+  <div class="media">
+    <div class="rocker">
+      <button data-cmd="volup" data-repeat aria-label="Volume up">+</button>
+      <span>Vol</span>
+      <button data-cmd="voldown" data-repeat aria-label="Volume down">−</button>
+    </div>
+    <div class="grid">
+      <button class="key" data-cmd="rew" aria-label="Rewind"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 6v12l-8-6zM20 6v12l-8-6z"/></svg></button>
+      <button class="key" data-cmd="play" aria-label="Play or pause"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 5v14l9-7z"/><path d="M15 5h2.5v14H15zM19.5 5H22v14h-2.5z"/></svg></button>
+      <button class="key" data-cmd="ff" aria-label="Fast forward"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 6v12l8-6zM4 6v12l8-6z"/></svg></button>
+      <button class="key" data-cmd="mute" aria-label="Mute"><span class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l4 6M21 9l-4 6"/></svg><small>Mute</small></span></button>
+      <button class="key" data-cmd="replay" aria-label="Replay"><span class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v6h6"/><path d="M5 15a8 8 0 1 0 1.5-8.5L4 10"/></svg><small>Replay</small></span></button>
+      <button class="key" id="refreshStatus" aria-label="Check which TVs are on"><span class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1" fill="currentColor"/></svg><small>Check</small></span></button>
+    </div>
+  </div>
+
+  <h2>Open an app</h2>
+  <div class="apps" id="apps"><div class="empty">Pick a TV to see its apps.</div></div>
+
+  <h2>Type into search</h2>
+  <div class="typer">
+    <input id="textIn" placeholder="Show or movie name" autocomplete="off" enterkeyhint="send">
+    <button class="btn" id="sendText">Send</button>
+  </div>
+</div>
+
+<!-- Manage TVs -->
+<div class="sheet" id="sheet" aria-hidden="true">
+  <div class="panel" role="dialog" aria-label="Manage TVs">
+    <div class="panel-head">
+      <h3>Your TVs</h3>
+      <button class="btn ghost" id="closeSettings">Done</button>
+    </div>
+    <div id="tvList"></div>
+
+    <h2 id="formTitle">Add a TV</h2>
+    <div class="form">
+      <label>Name<input id="fName" placeholder="Living room"></label>
+      <label>IP address<input id="fIp" placeholder="192.168.1.50" inputmode="decimal"></label>
+      <div class="seg" role="group" aria-label="TV type">
+        <button type="button" data-type="roku" aria-pressed="true">Roku</button>
+        <button type="button" data-type="googletv" aria-pressed="false">Google TV</button>
+        <button type="button" data-type="firetv" aria-pressed="false">Fire TV</button>
+      </div>
+      <div id="adbFields" hidden>
+        <label>ADB port<input id="fPort" value="5555" inputmode="numeric"></label>
+        <p class="hint">After saving, tap Connect. The TV will ask to allow debugging. Choose "Always allow from this computer," then tap Allow.</p>
+      </div>
+      <p class="hint" id="rokuHint">Rokus only need the IP. Find it on the TV under Settings, Network, About.</p>
+      <div class="actions">
+        <button class="btn ghost" id="cancelEdit" hidden>Cancel</button>
+        <button class="btn" id="saveTv">Save TV</button>
+      </div>
+    </div>
+
+    <h2>Find Rokus automatically</h2>
+    <button class="btn ghost" id="scanBtn" style="width:100%">Scan my Wi-Fi for Rokus</button>
+    <div class="scanlist" id="scanList" style="margin-top:10px"></div>
+
+    <h2>Device that won't connect?</h2>
+    <details class="form">
+      <summary>Pair with a code</summary>
+      <p class="hint">Only needed on newer Google TVs. On the TV: Settings, System, Developer options, Wireless debugging, Pair device with pairing code. Enter the port shown after the colon and the six-digit code. Then set that TV's ADB port to the connect port shown on the Wireless debugging screen.</p>
+      <label>TV<select id="pTv"></select></label>
+      <label>Pairing port<input id="pPort" inputmode="numeric" placeholder="37251"></label>
+      <label>Pairing code<input id="pCode" inputmode="numeric" placeholder="123456"></label>
+      <div class="actions"><button class="btn" id="pairBtn">Pair</button></div>
+    </details>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+
+let tvs = [];
+let status = {};
+let selected = new Set(store.get("selected", []));
+let multi = store.get("multi", false);
+let editingId = null;
+let formType = "roku";
+const LABEL = { roku: "Roku", googletv: "Google TV", firetv: "Fire TV" };
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts,
+    body: opts.body ? JSON.stringify(opts.body) : undefined });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  return data;
+}
+
+let toastTimer;
+function toast(msg, err = false) {
+  const t = $("#toast");
+  t.textContent = msg; t.className = "show" + (err ? " err" : "");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.className = ""), err ? 4200 : 1600);
+}
+function report(results, okMsg) {
+  const bad = results.filter((r) => !r.ok);
+  if (bad.length) toast(bad.map((r) => `${r.name}: ${r.error}`).join("\n"), true);
+  else if (okMsg) toast(okMsg);
+}
+const buzz = () => navigator.vibrate && navigator.vibrate(8);
+const targets = () => [...selected].filter((id) => tvs.some((t) => t.id === id));
+
+// ---------- picker ----------
+function renderPicker() {
+  const p = $("#picker");
+  p.innerHTML = "";
+  if (!tvs.length) { p.innerHTML = '<div class="empty">No TVs yet. Tap the button at the top right to add one.</div>'; }
+  if (tvs.length > 1) {
+    const all = document.createElement("button");
+    all.className = "chip all"; all.textContent = "All TVs";
+    all.setAttribute("aria-pressed", String(selected.size === tvs.length));
+    all.onclick = () => { multi = true; selected = new Set(tvs.map((t) => t.id)); commitSelection(); };
+    p.appendChild(all);
+  }
+  for (const tv of tvs) {
+    const s = status[tv.id];
+    const cls = !s ? "" : !s.online ? "off" : s.awake ? "on" : "sleep";
+    const b = document.createElement("button");
+    b.className = `chip ${tv.type}`;
+    b.setAttribute("aria-pressed", String(selected.has(tv.id)));
+    b.innerHTML = `<span class="dot ${cls}"></span>`;
+    b.append(tv.name);
+    b.title = !s ? "Checking" : !s.online ? (s.error || "Offline") : s.awake ? "On" : "Asleep";
+    b.onclick = () => {
+      if (multi) { selected.has(tv.id) ? selected.delete(tv.id) : selected.add(tv.id); }
+      else selected = new Set([tv.id]);
+      commitSelection();
+    };
+    p.appendChild(b);
+  }
+  $("#multiSwitch").setAttribute("aria-checked", String(multi));
+  const t = targets();
+  $("#targetLabel").textContent = !t.length ? "no TV" : t.length === tvs.length && t.length > 1 ? "all TVs"
+    : t.length === 1 ? tvs.find((x) => x.id === t[0]).name : `${t.length} TVs`;
+}
+function commitSelection() {
+  store.set("selected", [...selected]); store.set("multi", multi);
+  renderPicker(); loadApps();
+}
+$("#multiSwitch").onclick = () => {
+  multi = !multi;
+  if (!multi && selected.size > 1) selected = new Set([targets()[0]]);
+  commitSelection();
+};
+
+// ---------- buttons ----------
+async function sendKey(cmd) {
+  const ids = targets();
+  if (!ids.length) return toast("Pick a TV first", true);
+  buzz();
+  try { report(await api("/api/key", { method: "POST", body: { ids, cmd } })); }
+  catch (e) { toast(e.message, true); }
+}
+for (const btn of $$("[data-cmd]")) {
+  let delay, rep;
+  const stop = () => { clearTimeout(delay); clearInterval(rep); btn.classList.remove("pressed"); };
+  btn.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    btn.classList.add("pressed");
+    sendKey(btn.dataset.cmd);
+    if (btn.hasAttribute("data-repeat")) delay = setTimeout(() => (rep = setInterval(() => sendKey(btn.dataset.cmd), 180)), 450);
+  });
+  ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => btn.addEventListener(ev, stop));
+  btn.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sendKey(btn.dataset.cmd); } });
+  btn.addEventListener("contextmenu", (e) => e.preventDefault());
+}
+// keyboard arrows work on desktop
+document.addEventListener("keydown", (e) => {
+  if (e.target.matches("input,select") || $("#sheet").classList.contains("open")) return;
+  const map = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", Enter: "ok", Backspace: "back", Escape: "back" };
+  if (map[e.key] && !e.target.matches("button")) { e.preventDefault(); sendKey(map[e.key]); }
+});
+
+// ---------- apps ----------
+let appsReq = 0;
+async function loadApps() {
+  const ids = targets(), box = $("#apps"), my = ++appsReq;
+  if (!ids.length) { box.innerHTML = '<div class="empty">Pick a TV to see its apps.</div>'; return; }
+  box.innerHTML = '<div class="empty">Loading apps…</div>';
+  try {
+    const { catalog, per } = await api(`/api/apps?ids=${ids.join(",")}`);
+    if (my !== appsReq) return;
+    const known = per.filter((p) => p.apps);
+    const count = (k) => known.filter((p) => p.apps.includes(k)).length;
+    const list = known.length ? catalog.filter((a) => count(a.key) > 0) : catalog;
+    box.innerHTML = "";
+    if (!list.length) { box.innerHTML = '<div class="empty">None of the usual streaming apps are installed.</div>'; return; }
+    for (const a of list) {
+      const b = document.createElement("button");
+      const partial = known.length > 1 && count(a.key) < known.length;
+      b.className = "app" + (partial ? " partial" : "");
+      b.textContent = a.name;
+      if (partial) b.title = `Installed on ${count(a.key)} of ${known.length} TVs`;
+      b.onclick = async () => {
+        buzz();
+        const run = ids.filter((id) => { const p = per.find((x) => x.id === id); return !p || !p.apps || p.apps.includes(a.key); });
+        try { report(await api("/api/launch", { method: "POST", body: { ids: run, app: a.key } }), `Opening ${a.name}`); }
+        catch (e) { toast(e.message, true); }
+      };
+      box.appendChild(b);
+    }
+  } catch (e) { if (my === appsReq) box.innerHTML = `<div class="empty">${e.message}</div>`; }
+}
+
+// ---------- text ----------
+async function sendText() {
+  const text = $("#textIn").value;
+  if (!text) return;
+  const ids = targets();
+  if (!ids.length) return toast("Pick a TV first", true);
+  try { report(await api("/api/text", { method: "POST", body: { ids, text } }), "Sent"); $("#textIn").value = ""; }
+  catch (e) { toast(e.message, true); }
+}
+$("#sendText").onclick = sendText;
+$("#textIn").addEventListener("keydown", (e) => { if (e.key === "Enter") sendText(); });
+
+// ---------- status ----------
+async function refreshStatus(show) {
+  try {
+    const list = await api("/api/status");
+    status = Object.fromEntries(list.map((s) => [s.id, s]));
+    renderPicker();
+    if (show) {
+      const off = list.filter((s) => !s.online).map((s) => tvs.find((t) => t.id === s.id)?.name);
+      toast(off.length ? `Can't reach: ${off.join(", ")}` : "All TVs reachable", off.length > 0);
+    }
+  } catch {}
+}
+$("#refreshStatus").addEventListener("click", () => refreshStatus(true));
+setInterval(() => document.visibilityState === "visible" && refreshStatus(false), 20000);
+document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && refreshStatus(false));
+
+// ---------- manage TVs ----------
+function openSheet() { $("#sheet").classList.add("open"); $("#sheet").setAttribute("aria-hidden", "false"); renderList(); }
+function closeSheet() { $("#sheet").classList.remove("open"); $("#sheet").setAttribute("aria-hidden", "true"); resetForm(); }
+$("#openSettings").onclick = openSheet;
+$("#closeSettings").onclick = closeSheet;
+$("#sheet").addEventListener("click", (e) => { if (e.target.id === "sheet") closeSheet(); });
+
+function setType(t) {
+  formType = t;
+  $$(".seg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.type === t)));
+  $("#adbFields").hidden = t === "roku";
+  $("#rokuHint").hidden = t !== "roku";
+}
+$$(".seg button").forEach((b) => (b.onclick = () => setType(b.dataset.type)));
+
+function resetForm() {
+  editingId = null; $("#fName").value = ""; $("#fIp").value = ""; $("#fPort").value = "5555";
+  setType("roku"); $("#formTitle").textContent = "Add a TV"; $("#saveTv").textContent = "Save TV"; $("#cancelEdit").hidden = true;
+}
+$("#cancelEdit").onclick = resetForm;
+
+function renderList() {
+  const box = $("#tvList");
+  box.innerHTML = tvs.length ? "" : '<p class="hint">Add your first TV below.</p>';
+  for (const tv of tvs) {
+    const row = document.createElement("div");
+    row.className = "tvrow";
+    row.innerHTML = `<span class="tag ${tv.type}">${LABEL[tv.type]}</span>
+      <div class="info"><b></b><span>${tv.ip}${tv.type === "roku" ? "" : ":" + (tv.adbPort || 5555)}</span></div>`;
+    $("b", row).textContent = tv.name;
+    if (tv.type !== "roku") {
+      const c = document.createElement("button"); c.className = "btn ghost"; c.textContent = "Connect";
+      c.onclick = async () => {
+        c.textContent = "Connecting…";
+        try { await api(`/api/tvs/${tv.id}/connect`, { method: "POST" }); toast(`${tv.name} connected`); refreshStatus(false); }
+        catch (e) { toast(e.message, true); }
+        c.textContent = "Connect";
+      };
+      row.appendChild(c);
+    }
+    const ed = document.createElement("button"); ed.className = "btn ghost"; ed.textContent = "Edit";
+    ed.onclick = () => {
+      editingId = tv.id; $("#fName").value = tv.name; $("#fIp").value = tv.ip; $("#fPort").value = tv.adbPort || 5555;
+      setType(tv.type); $("#formTitle").textContent = `Edit ${tv.name}`; $("#saveTv").textContent = "Save changes"; $("#cancelEdit").hidden = false;
+      $("#fName").focus();
+    };
+    const del = document.createElement("button"); del.className = "btn danger"; del.textContent = "Remove";
+    del.onclick = async () => {
+      if (!confirm(`Remove ${tv.name}?`)) return;
+      await api(`/api/tvs/${tv.id}`, { method: "DELETE" }); selected.delete(tv.id); await loadTvs(); renderList();
+    };
+    row.append(ed, del);
+    box.appendChild(row);
+  }
+  $("#pTv").innerHTML = tvs.filter((t) => t.type !== "roku").map((t) => `<option value="${t.id}">${t.name}</option>`).join("")
+    || '<option value="">Add a Google TV or Fire TV first</option>';
+}
+
+$("#saveTv").onclick = async () => {
+  const body = { name: $("#fName").value, ip: $("#fIp").value, type: formType, adbPort: $("#fPort").value };
+  if (!body.name.trim() || !body.ip.trim()) return toast("Enter a name and IP address", true);
+  try {
+    const tv = editingId ? await api(`/api/tvs/${editingId}`, { method: "PUT", body }) : await api("/api/tvs", { method: "POST", body });
+    toast(editingId ? "Changes saved" : `${tv.name} added`);
+    if (!editingId && !selected.size) selected.add(tv.id);
+    resetForm(); await loadTvs(); renderList(); refreshStatus(false);
+  } catch (e) { toast(e.message, true); }
+};
+
+$("#scanBtn").onclick = async () => {
+  const btn = $("#scanBtn"), box = $("#scanList");
+  btn.textContent = "Scanning…"; btn.disabled = true; box.innerHTML = "";
+  try {
+    const found = await api("/api/scan");
+    const fresh = found.filter((f) => !tvs.some((t) => t.ip === f.ip));
+    if (!found.length) box.innerHTML = '<p class="hint">No Rokus answered. Make sure this PC is on the same Wi-Fi, or add them by IP.</p>';
+    else if (!fresh.length) box.innerHTML = '<p class="hint">Every Roku found is already added.</p>';
+    for (const f of fresh) {
+      const row = document.createElement("div"); row.className = "tvrow";
+      row.innerHTML = `<span class="tag roku">Roku</span><div class="info"><b></b><span>${f.ip}</span></div>`;
+      $("b", row).textContent = f.name;
+      const add = document.createElement("button"); add.className = "btn"; add.textContent = "Add";
+      add.onclick = async () => {
+        await api("/api/tvs", { method: "POST", body: { name: f.name, ip: f.ip, type: "roku" } });
+        row.remove(); await loadTvs(); renderList(); refreshStatus(false); toast(`${f.name} added`);
+      };
+      row.appendChild(add); box.appendChild(row);
+    }
+  } catch (e) { toast(e.message, true); }
+  btn.textContent = "Scan my Wi-Fi for Rokus"; btn.disabled = false;
+};
+
+$("#pairBtn").onclick = async () => {
+  const id = $("#pTv").value;
+  if (!id) return toast("Add a Google TV or Fire TV first", true);
+  try {
+    await api(`/api/tvs/${id}/pair`, { method: "POST", body: { pairPort: $("#pPort").value, code: $("#pCode").value } });
+    toast("Paired. Now set the ADB port and tap Connect.");
+    $("#pCode").value = "";
+  } catch (e) { toast(e.message, true); }
+};
+
+// ---------- boot ----------
+async function loadTvs() {
+  tvs = await api("/api/tvs");
+  selected = new Set(targets());
+  if (!selected.size && tvs.length) selected.add(tvs[0].id);
+  if (!multi && selected.size > 1) selected = new Set([[...selected][0]]);
+  commitSelection();
+}
+loadTvs().then(() => { refreshStatus(false); if (!tvs.length) openSheet(); })
+  .catch(() => toast("Can't reach the hub. Is the server running on your PC?", true));
+</script>
+</body>
+</html>

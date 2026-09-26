@@ -1,0 +1,8 @@
+{
+  "name": "TV Remote Hub",
+  "slug": "tv-hub",
+  "entry": "server.js",
+  "port": 3000,
+  "files": ["server.js", "package.json", "public/index.html", "README.md", "app.json"],
+  "keep": ["tvs.json"]
+}
