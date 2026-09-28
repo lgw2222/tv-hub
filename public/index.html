@@ -47,7 +47,7 @@ header h1{font-size:22px;font-weight:700;margin:0;letter-spacing:.2px}
 .chip .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
 .chip .dot.on{background:var(--ok)} .chip .dot.sleep{background:var(--warn)} .chip .dot.off{background:var(--power)}
 .chip[aria-pressed="true"]{border-color:var(--c,var(--ink))}
-.chip.roku{--c:var(--roku)} .chip.googletv{--c:var(--gtv)} .chip.firetv{--c:var(--fire)}
+.chip.roku{--c:var(--roku)} .chip.googletv{--c:var(--gtv)} .chip.firetv{--c:var(--fire)} .chip.vega{--c:var(--fire)}
 .chip.all{--c:var(--ink)}
 .multi{display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-size:15px;padding:0 4px 14px}
 .switch{display:flex;align-items:center;gap:10px}
@@ -127,7 +127,7 @@ input,select{font:inherit;color:var(--ink);background:var(--key-lo);border:1px s
 .tvrow .info b{display:block;font-size:17px}
 .tvrow .info span{color:var(--muted);font-size:14px}
 .tag{font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;color:#fff}
-.tag.roku{background:var(--roku)} .tag.googletv{background:var(--gtv)} .tag.firetv{background:var(--fire)}
+.tag.roku{background:var(--roku)} .tag.googletv{background:var(--gtv)} .tag.firetv{background:var(--fire)} .tag.vega{background:var(--fire)}
 .form{display:grid;gap:10px;background:var(--key);padding:14px;border-radius:16px}
 .form label{display:grid;gap:6px;font-size:14px;color:var(--muted);font-weight:500}
 .seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--key-lo);border-radius:12px;padding:4px}
@@ -138,6 +138,54 @@ input,select{font:inherit;color:var(--ink);background:var(--key-lo);border:1px s
 details summary{cursor:pointer;color:var(--ink);font-weight:600;font-size:15px}
 .actions{display:flex;gap:8px;justify-content:flex-end}
 .scanlist .tvrow{background:var(--key-lo)}
+.seg{grid-template-columns:repeat(2,1fr)}
+@media (min-width:480px){.seg{grid-template-columns:repeat(4,1fr)}}
+
+/* layout areas: phone = one column, iPad = remote left, presets/voice/apps right */
+.layout{display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"pick" "pre" "remote" "voice" "apps";column-gap:28px}
+.layout>section{min-width:0}
+.a-pick{grid-area:pick}.a-pre{grid-area:pre}.a-remote{grid-area:remote}.a-voice{grid-area:voice}.a-apps{grid-area:apps}
+@media (min-width:760px){
+  .wrap{max-width:1080px;padding:18px 28px 34px}
+  .layout{grid-template-columns:minmax(340px,420px) 1fr;grid-template-areas:"pick pick" "remote pre" "remote voice" "remote apps";grid-template-rows:auto auto auto 1fr;align-items:start;align-content:start}
+  .a-remote{position:sticky;top:12px}
+  .apps{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+  .presets{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+  .dpad{width:280px}
+  .a-pre h2:first-child,.a-voice h2:first-child{margin-top:4px}
+  .panel{max-width:640px;bottom:auto;top:6%;border-radius:22px;max-height:88%}
+}
+@media (min-width:1100px){.key{min-height:62px}.app{padding:18px 8px}}
+
+/* presets */
+.presets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}
+.preset{background:var(--key);border-radius:14px;padding:14px 12px;text-align:left;font-weight:700;font-size:17px;
+  box-shadow:inset 0 1px 0 var(--key-hi),0 2px 0 var(--key-lo);border-left:4px solid var(--gtv);min-height:64px;min-width:0}
+.preset small{display:block;font-weight:500;font-size:13px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.preset:active,.preset.running{transform:translateY(2px);opacity:.8}
+.preset.add{border-left-color:transparent;border:2px dashed var(--line);box-shadow:none;background:none;color:var(--muted);text-align:center;font-weight:600}
+.sechead{display:flex;align-items:center;justify-content:space-between}
+.sechead h2{margin-right:auto}
+.link{color:var(--muted);font-size:14px;font-weight:600;padding:6px 4px}
+.editing .preset:not(.add){border-left-color:var(--warn)}
+
+/* voice */
+.voice{display:flex;gap:8px}
+.mic{flex:0 0 52px;height:50px;border-radius:12px;background:var(--gtv);color:#fff;display:grid;place-items:center}
+.mic svg{width:24px;height:24px}
+.mic.listening{background:var(--power);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.6}}
+.examples{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.examples button{font-size:13px;color:var(--muted);background:var(--key-lo);padding:6px 10px;border-radius:999px}
+
+/* preset editor */
+.steps{display:grid;gap:8px}
+.step{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--key-lo);padding:10px;border-radius:12px;position:relative}
+.step .full{grid-column:1/-1}
+.step select,.step input{padding:10px 12px}
+.step .x{position:absolute;top:-8px;right:-8px;width:28px;height:28px;border-radius:50%;background:var(--power);color:#fff;font-weight:700;line-height:1}
+.step .num{grid-column:1/-1;font-size:12px;color:var(--muted);font-weight:700}
+@media (min-width:760px){.step{grid-template-columns:1.1fr 1fr 1.3fr}.step .full{grid-column:auto}}
 </style>
 </head>
 <body>
@@ -149,11 +197,21 @@ details summary{cursor:pointer;color:var(--ink);font-weight:600;font-size:15px}
     </button>
   </header>
 
+  <div class="layout">
+  <section class="a-pick">
   <div class="picker" id="picker" role="group" aria-label="Choose TVs"></div>
   <div class="multi">
     <button class="switch" id="multiSwitch" role="switch" aria-checked="false"><span class="track"></span>Control several</button>
     <span>Sending to <span class="target" id="targetLabel">no TV</span></span>
   </div>
+  </section>
+
+  <section class="a-pre">
+    <div class="sechead"><h2>Presets</h2><button class="link" id="editPresets">Edit</button></div>
+    <div class="presets" id="presets"></div>
+  </section>
+
+  <section class="a-remote">
 
   <div class="row r3">
     <button class="key power" data-cmd="power" aria-label="Power toggle"><span class="label">
@@ -192,6 +250,19 @@ details summary{cursor:pointer;color:var(--ink);font-weight:600;font-size:15px}
     </div>
   </div>
 
+  </section>
+
+  <section class="a-voice">
+    <h2>Say or type a command</h2>
+    <div class="voice">
+      <button class="mic" id="micBtn" aria-label="Speak a command"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+      <input id="cmdIn" placeholder="Game Day, ESPN on the Hisense, turn off all TVs" autocomplete="off" enterkeyhint="go">
+      <button class="btn" id="cmdGo">Go</button>
+    </div>
+    <div class="examples" id="examples"></div>
+  </section>
+
+  <section class="a-apps">
   <h2>Open an app</h2>
   <div class="apps" id="apps"><div class="empty">Pick a TV to see its apps.</div></div>
 
@@ -199,6 +270,29 @@ details summary{cursor:pointer;color:var(--ink);font-weight:600;font-size:15px}
   <div class="typer">
     <input id="textIn" placeholder="Show or movie name" autocomplete="off" enterkeyhint="send">
     <button class="btn" id="sendText">Send</button>
+  </div>
+  </section>
+  </div>
+</div>
+
+<!-- Preset editor -->
+<div class="sheet" id="pSheet" aria-hidden="true">
+  <div class="panel" role="dialog" aria-label="Edit preset">
+    <div class="panel-head">
+      <h3 id="peTitle">New preset</h3>
+      <button class="btn ghost" id="peClose">Cancel</button>
+    </div>
+    <div class="form">
+      <label>Name<input id="peName" placeholder="Game Day"></label>
+      <p class="hint">Steps run top to bottom. Add a short wait after turning TVs on so apps have time to load.</p>
+      <div class="steps" id="peSteps"></div>
+      <button class="btn ghost" id="peAdd">+ Add a step</button>
+      <div class="actions">
+        <button class="btn danger" id="peDelete" hidden>Delete preset</button>
+        <button class="btn ghost" id="peTest">Test it</button>
+        <button class="btn" id="peSave">Save</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -219,11 +313,13 @@ details summary{cursor:pointer;color:var(--ink);font-weight:600;font-size:15px}
         <button type="button" data-type="roku" aria-pressed="true">Roku</button>
         <button type="button" data-type="googletv" aria-pressed="false">Google TV</button>
         <button type="button" data-type="firetv" aria-pressed="false">Fire TV</button>
+        <button type="button" data-type="vega" aria-pressed="false">Fire TV (Vega)</button>
       </div>
       <div id="adbFields" hidden>
         <label>ADB port<input id="fPort" value="5555" inputmode="numeric"></label>
         <p class="hint">After saving, tap Connect. The TV will ask to allow debugging. Choose "Always allow from this computer," then tap Allow.</p>
       </div>
+      <p class="hint" id="vegaHint" hidden>For newer Fire Sticks with no ADB option (they show a code screen instead of Developer options). After saving, tap Pair. A PIN appears on the TV; type it in once.</p>
       <p class="hint" id="rokuHint">Rokus only need the IP. Find it on the TV under Settings, Network, About.</p>
       <div class="actions">
         <button class="btn ghost" id="cancelEdit" hidden>Cancel</button>
@@ -263,7 +359,7 @@ let selected = new Set(store.get("selected", []));
 let multi = store.get("multi", false);
 let editingId = null;
 let formType = "roku";
-const LABEL = { roku: "Roku", googletv: "Google TV", firetv: "Fire TV" };
+const LABEL = { roku: "Roku", googletv: "Google TV", firetv: "Fire TV", vega: "Fire TV" };
 
 async function api(path, opts = {}) {
   const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts,
@@ -353,7 +449,7 @@ for (const btn of $$("[data-cmd]")) {
 }
 // keyboard arrows work on desktop
 document.addEventListener("keydown", (e) => {
-  if (e.target.matches("input,select") || $("#sheet").classList.contains("open")) return;
+  if (e.target.matches("input,select") || $("#sheet").classList.contains("open") || $("#pSheet").classList.contains("open")) return;
   const map = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", Enter: "ok", Backspace: "back", Escape: "back" };
   if (map[e.key] && !e.target.matches("button")) { e.preventDefault(); sendKey(map[e.key]); }
 });
@@ -427,7 +523,8 @@ $("#sheet").addEventListener("click", (e) => { if (e.target.id === "sheet") clos
 function setType(t) {
   formType = t;
   $$(".seg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.type === t)));
-  $("#adbFields").hidden = t === "roku";
+  $("#adbFields").hidden = t === "roku" || t === "vega";
+  $("#vegaHint").hidden = t !== "vega";
   $("#rokuHint").hidden = t !== "roku";
 }
 $$(".seg button").forEach((b) => (b.onclick = () => setType(b.dataset.type)));
@@ -445,9 +542,21 @@ function renderList() {
     const row = document.createElement("div");
     row.className = "tvrow";
     row.innerHTML = `<span class="tag ${tv.type}">${LABEL[tv.type]}</span>
-      <div class="info"><b></b><span>${tv.ip}${tv.type === "roku" ? "" : ":" + (tv.adbPort || 5555)}</span></div>`;
+      <div class="info"><b></b><span>${tv.ip}${tv.type === "roku" || tv.type === "vega" ? "" : ":" + (tv.adbPort || 5555)}${tv.type === "vega" ? (tv.paired ? " · paired" : " · not paired") : ""}</span></div>`;
     $("b", row).textContent = tv.name;
-    if (tv.type !== "roku") {
+    if (tv.type === "vega") {
+      const p = document.createElement("button"); p.className = "btn ghost"; p.textContent = tv.paired ? "Re-pair" : "Pair";
+      p.onclick = async () => {
+        p.textContent = "Asking TV…";
+        try {
+          await api(`/api/tvs/${tv.id}/vega/pin`, { method: "POST" });
+          const pin = prompt(`Enter the PIN shown on ${tv.name}`);
+          if (pin) { await api(`/api/tvs/${tv.id}/vega/verify`, { method: "POST", body: { pin } }); toast(`${tv.name} paired`); await loadTvs(); renderList(); refreshStatus(false); return; }
+        } catch (e) { toast(e.message, true); }
+        p.textContent = tv.paired ? "Re-pair" : "Pair";
+      };
+      row.appendChild(p);
+    } else if (tv.type !== "roku") {
       const c = document.createElement("button"); c.className = "btn ghost"; c.textContent = "Connect";
       c.onclick = async () => {
         c.textContent = "Connecting…";
@@ -471,7 +580,7 @@ function renderList() {
     row.append(ed, del);
     box.appendChild(row);
   }
-  $("#pTv").innerHTML = tvs.filter((t) => t.type !== "roku").map((t) => `<option value="${t.id}">${t.name}</option>`).join("")
+  $("#pTv").innerHTML = tvs.filter((t) => t.type === "googletv" || t.type === "firetv").map((t) => `<option value="${t.id}">${t.name}</option>`).join("")
     || '<option value="">Add a Google TV or Fire TV first</option>';
 }
 
@@ -519,6 +628,146 @@ $("#pairBtn").onclick = async () => {
   } catch (e) { toast(e.message, true); }
 };
 
+// ---------- presets ----------
+let presets = [], catalog = [], presetEdit = false, editingPreset = null;
+const ACTIONS = [["poweron", "Turn on"], ["poweroff", "Turn off"], ["app", "Open app"], ["key", "Press button"], ["text", "Type text"], ["wait", "Wait (seconds)"]];
+const KEYS = [["home", "Home"], ["back", "Back"], ["ok", "OK"], ["up", "Up"], ["down", "Down"], ["left", "Left"], ["right", "Right"], ["play", "Play/Pause"], ["mute", "Mute"], ["volup", "Volume up"], ["voldown", "Volume down"], ["menu", "Options"]];
+const tvName = (id) => id === "all" ? "All TVs" : (tvs.find((t) => t.id === id) || {}).name || "Missing TV";
+function summary(p) {
+  const bits = p.steps.filter((s) => s.action === "app").map((s) => `${tvName(s.tv)} → ${(catalog.find((a) => a.key === s.value) || {}).name || s.value}`);
+  if (bits.length) return bits.join(" · ");
+  if (p.steps.some((s) => s.action === "poweroff")) return "Turns TVs off";
+  return `${p.steps.length} step${p.steps.length === 1 ? "" : "s"}`;
+}
+async function loadPresets() { try { presets = await api("/api/presets"); } catch { presets = []; } renderPresets(); renderExamples(); }
+async function loadCatalog() { try { catalog = (await api("/api/apps?ids=")).catalog; } catch {} }
+function renderPresets() {
+  const box = $("#presets");
+  box.classList.toggle("editing", presetEdit);
+  $("#editPresets").textContent = presetEdit ? "Done" : "Edit";
+  box.innerHTML = "";
+  for (const p of presets) {
+    const b = document.createElement("button");
+    b.className = "preset"; b.innerHTML = `<span></span><small></small>`;
+    $("span", b).textContent = p.name; $("small", b).textContent = presetEdit ? "Tap to edit" : summary(p);
+    b.onclick = () => (presetEdit ? openPreset(p) : runPreset(p, b));
+    box.appendChild(b);
+  }
+  const add = document.createElement("button");
+  add.className = "preset add"; add.textContent = "+ New preset";
+  add.onclick = () => openPreset(null);
+  box.appendChild(add);
+}
+$("#editPresets").onclick = () => { presetEdit = !presetEdit; renderPresets(); };
+async function runPreset(p, btn) {
+  buzz(); btn && btn.classList.add("running"); toast(`Running ${p.name}…`);
+  try { const r = await api(`/api/presets/${p.id}/run`, { method: "POST" }); report(r.results, `${p.name} done`); }
+  catch (e) { toast(e.message, true); }
+  btn && btn.classList.remove("running"); setTimeout(() => refreshStatus(false), 3000);
+}
+function opt(list, sel) { return list.map(([v, l]) => `<option value="${v}"${v === sel ? " selected" : ""}>${l}</option>`).join(""); }
+function stepRow(st, i) {
+  const el = document.createElement("div"); el.className = "step";
+  const tvOpts = [["all", "All TVs"], ...tvs.map((t) => [t.id, t.name])];
+  el.innerHTML = `<span class="num">Step ${i + 1}</span>
+    <select data-f="tv" aria-label="TV"${st.action === "wait" ? " disabled" : ""}>${opt(tvOpts, st.tv)}</select>
+    <select data-f="action" aria-label="Action">${opt(ACTIONS, st.action)}</select>
+    <span class="full" data-slot></span>
+    <button class="x" aria-label="Remove step">×</button>`;
+  const slot = $("[data-slot]", el);
+  const draw = () => {
+    const a = st.action;
+    slot.innerHTML = a === "app" ? `<select data-f="value" aria-label="App">${opt(catalog.map((c) => [c.key, c.name]), st.value || (catalog[0] || {}).key)}</select>`
+      : a === "key" ? `<select data-f="value" aria-label="Button">${opt(KEYS, st.value || "home")}</select>`
+      : a === "text" ? `<input data-f="value" placeholder="Text to type" value="">`
+      : a === "wait" ? `<input data-f="value" inputmode="numeric" placeholder="Seconds" value="">`
+      : `<span class="hint">&nbsp;</span>`;
+    const v = $("[data-f=value]", slot);
+    if (v) { if (v.tagName === "INPUT") v.value = st.value || (a === "wait" ? "5" : ""); st.value = v.value; v.oninput = v.onchange = () => (st.value = v.value); }
+    else st.value = "";
+    $("[data-f=tv]", el).disabled = a === "wait";
+  };
+  $("[data-f=tv]", el).onchange = (e) => (st.tv = e.target.value);
+  $("[data-f=action]", el).onchange = (e) => { st.action = e.target.value; st.value = ""; draw(); };
+  $(".x", el).onclick = () => { editingPreset.steps.splice(i, 1); drawSteps(); };
+  draw();
+  return el;
+}
+function drawSteps() {
+  const box = $("#peSteps"); box.innerHTML = "";
+  editingPreset.steps.forEach((st, i) => box.appendChild(stepRow(st, i)));
+  if (!editingPreset.steps.length) box.innerHTML = '<p class="hint">No steps yet.</p>';
+}
+async function openPreset(p) {
+  if (!catalog.length) await loadCatalog();
+  editingPreset = p ? JSON.parse(JSON.stringify(p)) : { name: "", steps: [{ tv: "all", action: "poweron", value: "" }, { tv: "all", action: "wait", value: "5" }] };
+  $("#peTitle").textContent = p ? `Edit ${p.name}` : "New preset";
+  $("#peName").value = editingPreset.name; $("#peDelete").hidden = !p;
+  drawSteps();
+  $("#pSheet").classList.add("open"); $("#pSheet").setAttribute("aria-hidden", "false");
+}
+function closePreset() { $("#pSheet").classList.remove("open"); $("#pSheet").setAttribute("aria-hidden", "true"); editingPreset = null; }
+$("#peClose").onclick = closePreset;
+$("#pSheet").addEventListener("click", (e) => { if (e.target.id === "pSheet") closePreset(); });
+$("#peAdd").onclick = () => { editingPreset.steps.push({ tv: targets()[0] || "all", action: "app", value: (catalog[0] || {}).key || "" }); drawSteps(); };
+$("#peSave").onclick = async () => {
+  const name = $("#peName").value.trim();
+  if (!name) return toast("Give the preset a name", true);
+  const body = { name, steps: editingPreset.steps };
+  try {
+    if (editingPreset.id) await api(`/api/presets/${editingPreset.id}`, { method: "PUT", body });
+    else await api("/api/presets", { method: "POST", body });
+    toast(`${name} saved`); closePreset(); loadPresets();
+  } catch (e) { toast(e.message, true); }
+};
+$("#peTest").onclick = async () => {
+  const name = $("#peName").value.trim() || "Test";
+  try {
+    toast(`Testing ${name}…`);
+    const r = await api("/api/presets/test", { method: "POST", body: { steps: editingPreset.steps } });
+    report(r.results, "Test done");
+  } catch (e) { toast(e.message, true); }
+};
+$("#peDelete").onclick = async () => {
+  if (!editingPreset.id || !confirm(`Delete ${editingPreset.name}?`)) return;
+  await api(`/api/presets/${editingPreset.id}`, { method: "DELETE" }); closePreset(); loadPresets();
+};
+
+// ---------- voice / typed commands ----------
+function renderExamples() {
+  const ex = [...presets.slice(0, 2).map((p) => p.name)];
+  const r = tvs.find((t) => t.type === "roku"); if (r) ex.push(`YouTube on the ${r.name}`);
+  ex.push("Turn off all TVs");
+  $("#examples").innerHTML = "";
+  for (const e of ex) { const b = document.createElement("button"); b.textContent = e; b.onclick = () => runCommand(e); $("#examples").appendChild(b); }
+}
+async function runCommand(text) {
+  text = (text || "").trim(); if (!text) return;
+  buzz();
+  try {
+    const r = await api("/api/command", { method: "POST", body: { text, ids: targets() } });
+    report(r.results || [], r.did); $("#cmdIn").value = "";
+    setTimeout(() => refreshStatus(false), 3000);
+  } catch (e) { toast(e.message, true); }
+}
+$("#cmdGo").onclick = () => runCommand($("#cmdIn").value);
+$("#cmdIn").addEventListener("keydown", (e) => { if (e.key === "Enter") runCommand($("#cmdIn").value); });
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+$("#micBtn").onclick = () => {
+  if (SR && window.isSecureContext) {
+    const rec = new SR(); rec.lang = "en-US"; rec.interimResults = false; rec.maxAlternatives = 1;
+    const mic = $("#micBtn"); mic.classList.add("listening");
+    rec.onresult = (e) => { const t = e.results[0][0].transcript; $("#cmdIn").value = t; runCommand(t); };
+    rec.onerror = () => toast("Didn't hear anything. Try again or type it.", true);
+    rec.onend = () => mic.classList.remove("listening");
+    try { rec.start(); } catch { mic.classList.remove("listening"); }
+  } else {
+    // Browsers only allow the built-in mic on https pages. The keyboard's dictation mic works everywhere.
+    $("#cmdIn").focus();
+    toast("Tap the mic on your keyboard, say the command, then Go");
+  }
+};
+
 // ---------- boot ----------
 async function loadTvs() {
   tvs = await api("/api/tvs");
@@ -527,7 +776,7 @@ async function loadTvs() {
   if (!multi && selected.size > 1) selected = new Set([[...selected][0]]);
   commitSelection();
 }
-loadTvs().then(() => { refreshStatus(false); if (!tvs.length) openSheet(); })
+loadTvs().then(() => { refreshStatus(false); loadCatalog().then(loadPresets); if (!tvs.length) openSheet(); })
   .catch(() => toast("Can't reach the hub. Is the server running on your PC?", true));
 </script>
 </body>

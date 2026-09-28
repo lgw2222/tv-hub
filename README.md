@@ -34,6 +34,13 @@ Don't want to touch PATH? Start the server with `set ADB_PATH=C:\platform-tools\
 
 If Connect keeps failing on a newer Google TV (Android 14 / Google TV Streamer), use the "Pair with a code" section in the dashboard with Developer options > Wireless debugging.
 
+**Newer Fire Sticks (Vega OS, e.g. Fire TV Stick 4K Select)**
+These have no ADB. If "Developer options" shows a code screen instead of an ADB switch, it's a Vega stick.
+1. Find the IP: Settings > My Fire TV > About > Network.
+2. In the dashboard, add it with type **Fire TV (Vega)**, then tap **Pair**.
+3. A PIN appears on the TV. Type it in. You only do this once; the hub remembers it.
+Volume isn't available over Wi-Fi on these sticks, so use the TV's remote for volume.
+
 ## 4. Run it
 Double-click `start.bat` (first run installs everything). Or in this folder:
 ```
@@ -50,6 +57,21 @@ Keep the window open while you use the remote.
 - D-pad and volume repeat when held.
 - The app buttons only show apps installed on the TVs you picked.
 - On a PC, arrow keys, Enter and Backspace work too.
+
+## Presets
+Tap **+ New preset**, name it (like "Game Day"), and add steps: pick a TV (or All TVs) and an action:
+turn on/off, open an app, press a button, type text, or wait a few seconds. **Test it** runs it without saving.
+Tap a preset to run it. Tap **Edit** above the presets to change or delete one. Presets are saved on the PC,
+so every phone and iPad sees the same ones, and they survive updates.
+
+## Voice and typed commands
+Type or say things like "Game Day", "ESPN on the Hisense", "turn off all TVs", "pause the Roku Ultra",
+or "search for Ted Lasso on the TCL". On iPhone, iPad and Android, tap the mic key on the keyboard to dictate
+(browsers block the built-in mic on plain http pages, so the blue mic button focuses the box for you).
+
+## iPad
+On an iPad the remote sits on the left and presets, commands and apps on the right, in portrait or landscape.
+Use Share > Add to Home Screen so it opens full screen like an app.
 
 ## Tips
 - Give each TV a reserved IP in your router settings so addresses never change.

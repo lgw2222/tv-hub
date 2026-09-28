@@ -12,7 +12,9 @@ const { execFile } = require("child_process");
 const PORT = process.env.PORT || 3000;
 const ADB = process.env.ADB_PATH || "adb";
 const TVS_FILE = path.join(__dirname, "tvs.json");
-const TYPES = ["roku", "googletv", "firetv"];
+const TYPES = ["roku", "googletv", "firetv", "vega"];
+const https = require("https");
+const http = require("http");
 
 const app = express();
 app.use(express.json());
@@ -111,8 +113,73 @@ async function adbShell(tv, ...cmd) {
   return run(["-s", serial(tv), "shell", ...cmd]);
 }
 
+// ---------- Fire TV (Vega OS) via the Fire TV phone-app API ----------
+// Newer Fire Sticks (Vega OS) have no ADB. They accept the same local API the Fire TV phone app uses:
+// DIAL wake on :8009, then JSON over :8080 with a one-time PIN pairing that returns a client token.
+const VEGA_KEY = "0987654321";
+function vegaRaw(tv, method, pathQ, body, scheme, timeout = 5000) {
+  return new Promise((resolve, reject) => {
+    const lib = scheme === "http" ? http : https;
+    const data = body == null ? null : JSON.stringify(body);
+    const headers = { "X-Api-Key": VEGA_KEY, "Content-Type": "application/json; charset=utf-8", "User-Agent": "okhttp/4.10.0" };
+    if (tv.vegaToken) headers["X-Client-Token"] = tv.vegaToken;
+    if (data) headers["Content-Length"] = Buffer.byteLength(data);
+    const req = lib.request({ host: tv.ip, port: 8080, path: pathQ, method, headers, timeout, rejectUnauthorized: false }, (res) => {
+      let out = ""; res.on("data", (c) => (out += c));
+      res.on("end", () => resolve({ status: res.statusCode, body: out }));
+    });
+    req.on("timeout", () => req.destroy(new Error("timeout")));
+    req.on("error", reject);
+    if (data) req.write(data);
+    req.end();
+  });
+}
+function vegaWake(tv) {
+  return new Promise((resolve) => {
+    const req = http.request({ host: tv.ip, port: 8009, path: "/apps/FireTVRemote", method: "POST", timeout: 4000, headers: { "Content-Length": 0 } }, (res) => { res.resume(); res.on("end", () => resolve(res.statusCode)); });
+    req.on("timeout", () => req.destroy()); req.on("error", () => resolve(0)); req.end();
+  });
+}
+async function vegaReq(tv, method, pathQ, body) {
+  const order = tv.vegaScheme ? [tv.vegaScheme, tv.vegaScheme === "https" ? "http" : "https"] : ["https", "http"];
+  let lastErr;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    for (const scheme of order) {
+      try {
+        const r = await vegaRaw(tv, method, pathQ, body, scheme);
+        if (r.status === 401 || r.status === 403) throw Object.assign(new Error(`${tv.name} needs to be paired again. Open Manage TVs and tap Pair.`), { fatal: true });
+        if (r.status >= 400) throw Object.assign(new Error(`${tv.name} returned ${r.status}${r.body ? ": " + r.body.slice(0, 120) : ""}`), { fatal: true });
+        if (tv.vegaScheme !== scheme) { tv.vegaScheme = scheme; saveTvs(tvs); }
+        return r.body;
+      } catch (e) { if (e.fatal) throw e; lastErr = e; }
+    }
+    await vegaWake(tv); // remote service may be asleep; wake it and retry once
+    await new Promise((r) => setTimeout(r, 1200));
+  }
+  throw new Error(`Can't reach ${tv.name} at ${tv.ip}. Make sure it's on and on the same Wi-Fi. (${lastErr ? lastErr.message : "no answer"})`);
+}
+const VEGA_KEYS = {
+  up: ["FireTV", "dpad_up"], down: ["FireTV", "dpad_down"], left: ["FireTV", "dpad_left"], right: ["FireTV", "dpad_right"],
+  ok: ["FireTV", "select"], home: ["FireTV", "home"], back: ["FireTV", "back"], menu: ["FireTV", "menu"],
+  play: ["media", "play"], rew: ["media", "scan", { direction: "back" }], ff: ["media", "scan", { direction: "forward" }],
+  replay: ["media", "scan", { direction: "back" }],
+  volup: ["FireTV", "volume_up"], voldown: ["FireTV", "volume_down"], mute: ["FireTV", "mute"],
+  power: ["FireTV", "sleep"], poweroff: ["FireTV", "sleep"], poweron: ["FireTV", "home"],
+};
+async function vegaKey(tv, cmd) {
+  if (!tv.vegaToken) throw new Error(`Pair ${tv.name} first: Manage TVs, then Pair.`);
+  const k = VEGA_KEYS[cmd];
+  if (!k) throw new Error(`Unknown command ${cmd}`);
+  try { return await vegaReq(tv, "POST", `/v1/${k[0]}?action=${k[1]}`, k[2] || {}); }
+  catch (e) {
+    if (/^(volup|voldown|mute)$/.test(cmd)) throw new Error(`Volume isn't available on ${tv.name} over Wi-Fi. Use the TV's own remote for volume.`);
+    throw e;
+  }
+}
+
 // ---------- device-agnostic actions ----------
 async function sendKey(tv, cmd) {
+  if (tv.type === "vega") return vegaKey(tv, cmd);
   if (tv.type === "roku") {
     const k = ROKU_KEYS[cmd];
     if (!k) throw new Error(`Unknown command ${cmd}`);
@@ -124,6 +191,10 @@ async function sendKey(tv, cmd) {
 }
 
 async function sendText(tv, text) {
+  if (tv.type === "vega") {
+    if (!tv.vegaToken) throw new Error(`Pair ${tv.name} first.`);
+    return vegaReq(tv, "POST", "/v1/FireTV/text", { text });
+  }
   if (tv.type === "roku") {
     for (const ch of text) await rokuReq(tv, "POST", `/keypress/Lit_${encodeURIComponent(ch)}`);
     return;
@@ -149,6 +220,7 @@ async function installedIds(tv) {
 }
 
 async function availableApps(tv) {
+  if (tv.type === "vega") return APPS.filter((a) => a.fire || /netflix|disney|max|peacock|paramount|espn|spotify|plex|pluto|youtubetv/.test(a.key)).map((a) => a.key);
   const ids = await installedIds(tv);
   return APPS.filter((a) => (tv.type === "roku" ? a.roku : pkgsFor(tv, a)).some((id) => ids.has(id))).map((a) => a.key);
 }
@@ -156,6 +228,14 @@ async function availableApps(tv) {
 async function launchApp(tv, key) {
   const entry = APPS.find((a) => a.key === key);
   if (!entry) throw new Error("Unknown app");
+  if (tv.type === "vega") {
+    if (!tv.vegaToken) throw new Error(`Pair ${tv.name} first.`);
+    let err;
+    for (const id of [...(entry.fire || []), ...entry.android]) {
+      try { return await vegaReq(tv, "POST", `/v1/FireTV/app/${id}`, {}); } catch (e) { err = e; }
+    }
+    throw new Error(`Couldn't open ${entry.name} on ${tv.name}${err ? ": " + err.message : ""}`);
+  }
   const ids = await installedIds(tv).catch(() => new Set());
   const list = tv.type === "roku" ? entry.roku : pkgsFor(tv, entry);
   const id = list.find((x) => ids.has(x)) || list[0];
@@ -168,6 +248,14 @@ async function launchApp(tv, key) {
 
 async function status(tv) {
   try {
+    if (tv.type === "vega") {
+      const ok = await new Promise((resolve) => {
+        const sock = require("net").connect({ host: tv.ip, port: 8009, timeout: 2000 }, () => { sock.destroy(); resolve(true); });
+        sock.on("error", () => resolve(false)); sock.on("timeout", () => { sock.destroy(); resolve(false); });
+      });
+      if (!ok) return { online: false, error: `Can't reach ${tv.ip}` };
+      return tv.vegaToken ? { online: true, awake: true } : { online: false, error: "Not paired yet" };
+    }
     if (tv.type === "roku") {
       const xml = await rokuReq(tv, "GET", "/query/device-info", 2500);
       const mode = xmlTag(xml, "power-mode") || "";
@@ -222,13 +310,14 @@ function scanRokus(ms = 3000) {
 // ---------- routes ----------
 const wrap = (fn) => (req, res) => fn(req, res).catch((e) => res.status(500).json({ error: e.message }));
 
-app.get("/api/tvs", (req, res) => res.json(tvs));
+const publicTv = ({ vegaToken, ...t }) => ({ ...t, paired: t.type === "vega" ? !!vegaToken : undefined });
+app.get("/api/tvs", (req, res) => res.json(tvs.map(publicTv)));
 
 app.post("/api/tvs", (req, res) => {
   const { name, ip, type, adbPort } = req.body || {};
   if (!name || !ip || !TYPES.includes(type)) return res.status(400).json({ error: "Name, IP address and type are required." });
   const tv = { id: Date.now().toString(36), name: name.trim(), ip: ip.trim(), type };
-  if (type !== "roku") tv.adbPort = Number(adbPort) || 5555;
+  if (type === "googletv" || type === "firetv") tv.adbPort = Number(adbPort) || 5555;
   tvs.push(tv); saveTvs(tvs); res.json(tv);
 });
 
@@ -239,7 +328,8 @@ app.put("/api/tvs/:id", (req, res) => {
   if (name) tv.name = name.trim();
   if (ip) tv.ip = ip.trim();
   if (type && TYPES.includes(type)) tv.type = type;
-  if (tv.type !== "roku") tv.adbPort = Number(adbPort) || tv.adbPort || 5555; else delete tv.adbPort;
+  if (tv.type === "googletv" || tv.type === "firetv") tv.adbPort = Number(adbPort) || tv.adbPort || 5555; else delete tv.adbPort;
+  if (tv.type !== "vega") { delete tv.vegaToken; delete tv.vegaScheme; }
   appCache.delete(tv.id); saveTvs(tvs); res.json(tv);
 });
 
@@ -267,9 +357,30 @@ app.get("/api/apps", wrap(async (req, res) => {
   res.json({ catalog: APPS.map(({ key, name }) => ({ key, name })), per });
 }));
 
+// Vega pairing: step 1 shows a PIN on the TV, step 2 sends it back and stores the token
+app.post("/api/tvs/:id/vega/pin", wrap(async (req, res) => {
+  const tv = findTv(req.params.id);
+  if (!tv || tv.type !== "vega") return res.status(400).json({ error: "Pairing is only for Fire TV (Vega)" });
+  delete tv.vegaToken;
+  await vegaWake(tv);
+  await new Promise((r) => setTimeout(r, 800));
+  await vegaReq(tv, "POST", "/v1/FireTV/pin/display", { friendlyName: "TV Remote Hub" });
+  res.json({ ok: true });
+}));
+app.post("/api/tvs/:id/vega/verify", wrap(async (req, res) => {
+  const tv = findTv(req.params.id);
+  const pin = String((req.body || {}).pin || "").trim();
+  if (!tv || tv.type !== "vega" || !pin) return res.status(400).json({ error: "Enter the PIN shown on the TV." });
+  const body = await vegaReq(tv, "POST", "/v1/FireTV/pin/verify", { pin });
+  let token; try { token = JSON.parse(body).description; } catch {}
+  if (!token) throw new Error("The TV didn't accept that PIN. Tap Pair to get a new one.");
+  tv.vegaToken = token; saveTvs(tvs);
+  res.json({ ok: true });
+}));
+
 app.post("/api/tvs/:id/connect", wrap(async (req, res) => {
   const tv = findTv(req.params.id);
-  if (!tv || tv.type === "roku") return res.status(400).json({ error: "Connect is only for Google TV and Fire TV" });
+  if (!tv || tv.type === "roku" || tv.type === "vega") return res.status(400).json({ error: "Connect is only for Google TV and Fire TV" });
   await run(["disconnect", serial(tv)]).catch(() => {});
   await adbEnsure(tv);
   res.json({ ok: true });
@@ -287,6 +398,134 @@ app.post("/api/tvs/:id/pair", wrap(async (req, res) => {
 
 app.get("/api/scan", wrap(async (req, res) => res.json(await scanRokus())));
 
+// ---------- presets ----------
+const PRESETS_FILE = path.join(__dirname, "presets.json");
+let presets = (() => { try { return JSON.parse(fs.readFileSync(PRESETS_FILE, "utf8")); } catch { return []; } })();
+const savePresets = () => fs.writeFileSync(PRESETS_FILE, JSON.stringify(presets, null, 2));
+const STEP_ACTIONS = ["poweron", "poweroff", "power", "app", "key", "text", "wait"];
+function cleanSteps(steps) {
+  return (Array.isArray(steps) ? steps : []).slice(0, 40).map((st) => ({
+    tv: String(st.tv || "all"), action: STEP_ACTIONS.includes(st.action) ? st.action : "poweron",
+    value: st.value == null ? "" : String(st.value).slice(0, 120),
+  }));
+}
+const stepTargets = (st) => (st.tv === "all" ? tvs.map((t) => t.id) : [st.tv]).filter(findTv);
+async function runSteps(steps) {
+  const log = [];
+  for (const st of steps) {
+    if (st.action === "wait") { await new Promise((r) => setTimeout(r, Math.min(30, Math.max(0, Number(st.value) || 2)) * 1000)); continue; }
+    const ids = stepTargets(st);
+    if (!ids.length) continue;
+    const fn = st.action === "app" ? (tv) => launchApp(tv, st.value)
+      : st.action === "text" ? (tv) => sendText(tv, st.value)
+      : st.action === "key" ? (tv) => sendKey(tv, st.value)
+      : (tv) => sendKey(tv, st.action);
+    // "turn on" for Rokus in deep standby can need a moment; send in parallel across TVs
+    log.push(...(await fanOut(ids, fn)));
+  }
+  return log;
+}
+app.get("/api/presets", (req, res) => res.json(presets));
+app.post("/api/presets", (req, res) => {
+  const { name, steps } = req.body || {};
+  if (!name || !String(name).trim()) return res.status(400).json({ error: "Give the preset a name." });
+  const p = { id: Date.now().toString(36), name: String(name).trim().slice(0, 40), steps: cleanSteps(steps) };
+  presets.push(p); savePresets(); res.json(p);
+});
+app.put("/api/presets/:id", (req, res) => {
+  const p = presets.find((x) => x.id === req.params.id);
+  if (!p) return res.status(404).json({ error: "Preset not found" });
+  const { name, steps } = req.body || {};
+  if (name) p.name = String(name).trim().slice(0, 40);
+  if (steps) p.steps = cleanSteps(steps);
+  savePresets(); res.json(p);
+});
+app.delete("/api/presets/:id", (req, res) => { presets = presets.filter((x) => x.id !== req.params.id); savePresets(); res.json({ ok: true }); });
+app.post("/api/presets/order", (req, res) => {
+  const order = (req.body || {}).ids || [];
+  presets.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id)); savePresets(); res.json(presets);
+});
+app.post("/api/presets/test", wrap(async (req, res) => res.json({ results: await runSteps(cleanSteps((req.body || {}).steps)) })));
+app.post("/api/presets/:id/run", wrap(async (req, res) => {
+  const p = presets.find((x) => x.id === req.params.id);
+  if (!p) return res.status(404).json({ error: "Preset not found" });
+  res.json({ name: p.name, results: await runSteps(p.steps) });
+}));
+
+// ---------- voice / typed commands ----------
+const norm = (t) => String(t || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9+ ]+/g, " ").replace(/\s+/g, " ").trim();
+const APP_WORDS = {
+  youtube: ["youtube"], netflix: ["netflix"], youtubetv: ["youtube tv", "youtubetv"], hulu: ["hulu"], disney: ["disney", "disney plus", "disney+"],
+  prime: ["prime", "prime video", "amazon prime", "amazon video"], max: ["max", "hbo", "hbo max"], peacock: ["peacock"],
+  paramount: ["paramount", "paramount plus", "paramount+"], espn: ["espn"], appletv: ["apple tv", "apple"], spotify: ["spotify"],
+  plex: ["plex"], pluto: ["pluto", "pluto tv"],
+};
+const KEY_WORDS = [
+  ["poweroff", /\b(turn|switch|shut|power) (it |them )?off\b|\b(turn|shut|switch) off\b|\bpower off\b|\bsleep\b/],
+  ["poweron", /\b(turn|switch|power) (it |them )?on\b|\bwake( up)?\b|\bpower on\b/],
+  ["play", /\b(play|pause|resume|unpause)\b/],
+  ["home", /\b(go )?home\b/], ["back", /\bgo back\b|^back$/],
+  ["mute", /\b(mute|unmute)\b/], ["volup", /\b(volume up|louder|turn it up)\b/], ["voldown", /\b(volume down|quieter|softer|turn it down)\b/],
+  ["ff", /\b(fast forward|skip ahead)\b/], ["rew", /\b(rewind|go back 10)\b/],
+];
+function matchTvs(text, fallbackIds) {
+  if (/\b(all|every|everything|all the)\b( tvs?| the tvs| televisions)?/.test(text) && /\b(tvs|televisions|all|everything)\b/.test(text))
+    return tvs.map((t) => t.id);
+  const hits = [];
+  for (const tv of tvs) {
+    const n = norm(tv.name);
+    const words = n.split(" ").filter((w) => w.length > 2 && !["the", "and", "roku", "tv", "fire"].includes(w));
+    if (n && text.includes(n)) { hits.push({ id: tv.id, score: 100 + n.length }); continue; }
+    const score = words.filter((w) => new RegExp(`\\b${w}\\b`).test(text)).length;
+    if (score) hits.push({ id: tv.id, score });
+  }
+  if (!hits.length) {
+    // type words: "the roku", "the fire tv", "google tv"
+    const byType = (re, ok) => (re.test(text) ? tvs.filter(ok).map((t) => t.id) : []);
+    const t = [...byType(/\bgoogle( tv)?\b/, (x) => x.type === "googletv"), ...byType(/\bfire( tv| stick)?\b/, (x) => x.type === "firetv" || x.type === "vega")];
+    if (t.length) return t;
+    return fallbackIds;
+  }
+  const top = Math.max(...hits.map((h) => h.score));
+  return hits.filter((h) => h.score === top || h.score >= 100).map((h) => h.id);
+}
+function matchApp(text) {
+  let best = null;
+  for (const [key, words] of Object.entries(APP_WORDS))
+    for (const w of words) if (new RegExp(`\\b${w.replace("+", "\\+")}\\b`).test(text) && (!best || w.length > best.len)) best = { key, len: w.length };
+  return best && best.key;
+}
+app.post("/api/command", wrap(async (req, res) => {
+  const raw = String((req.body || {}).text || "");
+  const text = norm(raw);
+  const fallback = ((req.body || {}).ids || []).filter(findTv);
+  if (!text) return res.status(400).json({ error: "Say or type a command." });
+  // 1. preset by name ("game day", "run game day", "start movie night")
+  const pText = text.replace(/^(run|start|do|play|activate|set up|setup)\s+/, "").replace(/\s+(preset|mode|scene)$/, "");
+  const preset = presets.find((p) => norm(p.name) === pText) || presets.find((p) => text.includes(norm(p.name)) && norm(p.name).length > 2);
+  if (preset) return res.json({ did: `Running ${preset.name}`, results: await runSteps(preset.steps) });
+  const ids = matchTvs(text, fallback);
+  const names = (list) => (list.length === tvs.length && list.length > 1 ? "all TVs" : list.map((id) => findTv(id).name).join(", "));
+  // 2. app on TV ("put espn on the hisense", "netflix on the roku ultra")
+  const appKey = matchApp(text);
+  if (appKey && !/\b(turn|power|shut) (it |them )?off\b/.test(text)) {
+    if (!ids.length) return res.status(400).json({ error: "Which TV? Say its name, like \"ESPN on the Hisense\"." });
+    const entry = APPS.find((a) => a.key === appKey);
+    return res.json({ did: `Opening ${entry.name} on ${names(ids)}`, results: await fanOut(ids, (tv) => launchApp(tv, appKey)) });
+  }
+  // 3. button commands
+  const key = KEY_WORDS.find(([, re]) => re.test(text));
+  if (key) {
+    if (!ids.length) return res.status(400).json({ error: "Which TV? Say its name, or \"all TVs\"." });
+    return res.json({ did: `${{ poweroff: "Turning off", poweron: "Turning on", play: "Play/pause on", home: "Home on", back: "Back on", mute: "Mute on", volup: "Volume up on", voldown: "Volume down on", ff: "Fast forward on", rew: "Rewind on" }[key[0]]} ${names(ids)}`,
+      results: await fanOut(ids, (tv) => sendKey(tv, key[0])) });
+  }
+  // 4. search ("search for ted lasso on the tcl")
+  const m = text.match(/^(search( for)?|find|type)\s+(.+?)(\s+on\s+.+)?$/);
+  if (m && ids.length) return res.json({ did: `Typing "${m[3]}" on ${names(ids)}`, results: await fanOut(ids, (tv) => sendText(tv, m[3])) });
+  res.status(400).json({ error: `Didn't catch that. Try a preset name, "ESPN on the Hisense", or "turn off all TVs".` });
+}));
+
 // ---------- start ----------
 app.listen(PORT, "0.0.0.0", async () => {
   const ips = Object.values(os.networkInterfaces()).flat()
@@ -296,5 +535,5 @@ app.listen(PORT, "0.0.0.0", async () => {
   ips.forEach((ip) => console.log(`  On your phone: http://${ip}:${PORT}`));
   console.log("\n  Keep this window open while you use the remote.\n");
   // warm up ADB connections so the first button press is fast
-  for (const tv of tvs.filter((t) => t.type !== "roku")) adbEnsure(tv).catch(() => {});
+  for (const tv of tvs.filter((t) => t.type === "googletv" || t.type === "firetv")) adbEnsure(tv).catch(() => {});
 });
