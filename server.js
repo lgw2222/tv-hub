@@ -177,8 +177,67 @@ async function vegaKey(tv, cmd) {
   }
 }
 
+// ---------- Wake-on-LAN ----------
+// When a TV is fully off its network goes quiet, so commands can't reach it. A "magic packet"
+// to its MAC address wakes TVs that support it (Roku TVs with Fast TV start, many Google/Fire TVs
+// with network standby on). The hub learns each TV's MAC automatically while the TV is on.
+const normMac = (m) => { const h = String(m || "").replace(/[^0-9a-f]/gi, "").toLowerCase(); return h.length === 12 ? h.match(/../g).join(":") : ""; };
+function learnMac(tv) {
+  if (tv.mac) return;
+  const cmd = process.platform === "win32" ? ["arp", ["-a", tv.ip]] : ["arp", ["-n", tv.ip]];
+  execFile(cmd[0], cmd[1], { timeout: 3000, windowsHide: true }, (err, out) => {
+    const m = String(out || "").match(/([0-9a-f]{2}[:-]){5}[0-9a-f]{2}/i);
+    const mac = m && normMac(m[0]);
+    if (mac && mac !== "ff:ff:ff:ff:ff:ff" && !tv.mac) { tv.mac = mac; saveTvs(tvs); }
+  });
+}
+function sendWol(tv) {
+  const mac = normMac(tv.mac);
+  if (!mac) return Promise.resolve(false);
+  const hex = Buffer.from(mac.replace(/:/g, ""), "hex");
+  const pkt = Buffer.concat([Buffer.alloc(6, 0xff), ...Array(16).fill(hex)]);
+  const subnetBcast = tv.ip.split(".").slice(0, 3).join(".") + ".255";
+  return new Promise((resolve) => {
+    const sock = dgram.createSocket("udp4");
+    sock.on("error", () => { try { sock.close(); } catch {} resolve(false); });
+    sock.bind(() => {
+      sock.setBroadcast(true);
+      let n = 0;
+      const fire = () => {
+        for (const addr of [subnetBcast, "255.255.255.255"]) for (const port of [9, 7]) sock.send(pkt, port, addr, () => {});
+        if (++n < 3) setTimeout(fire, 250); else setTimeout(() => { try { sock.close(); } catch {} resolve(true); }, 300);
+      };
+      fire();
+    });
+  });
+}
+// try a command; if the TV can't be reached and we're turning it on, wake it and keep trying for a bit
+async function withWake(tv, fn, wakeIt) {
+  try { return await fn(); }
+  catch (e) {
+    if (!wakeIt || !tv.mac) {
+      if (wakeIt) throw new Error(`${e.message} ${tv.name} is fully off and the hub doesn't know its MAC address yet, so it can't wake it. Add the MAC in Manage TVs, or turn it on once with the remote.`);
+      throw e;
+    }
+    await sendWol(tv);
+    const until = Date.now() + 25000;
+    let last = e;
+    while (Date.now() < until) {
+      await new Promise((r) => setTimeout(r, 2500));
+      try { return await fn(); } catch (err) { last = err; }
+      if (Date.now() + 5000 < until) sendWol(tv);
+    }
+    throw new Error(`${tv.name} didn't wake up. Turn on its network standby setting (see the hint in Manage TVs). (${last.message})`);
+  }
+}
+
 // ---------- device-agnostic actions ----------
 async function sendKey(tv, cmd) {
+  const waking = cmd === "poweron" || cmd === "power";
+  if (waking && tv.mac) sendWol(tv); // fire a wake packet up front; harmless if the TV is already on
+  return withWake(tv, () => sendKeyRaw(tv, cmd), waking);
+}
+async function sendKeyRaw(tv, cmd) {
   if (tv.type === "vega") return vegaKey(tv, cmd);
   if (tv.type === "roku") {
     const k = ROKU_KEYS[cmd];
@@ -254,14 +313,17 @@ async function status(tv) {
         sock.on("error", () => resolve(false)); sock.on("timeout", () => { sock.destroy(); resolve(false); });
       });
       if (!ok) return { online: false, error: `Can't reach ${tv.ip}` };
+      learnMac(tv);
       return tv.vegaToken ? { online: true, awake: true } : { online: false, error: "Not paired yet" };
     }
     if (tv.type === "roku") {
       const xml = await rokuReq(tv, "GET", "/query/device-info", 2500);
+      learnMac(tv);
       const mode = xmlTag(xml, "power-mode") || "";
       return { online: true, awake: mode ? mode === "PowerOn" : true, model: xmlTag(xml, "model-name") };
     }
     const out = await adbShell(tv, "dumpsys", "power");
+    learnMac(tv);
     const w = (out.match(/mWakefulness=(\w+)/) || [])[1];
     return { online: true, awake: w ? w === "Awake" : true };
   } catch (e) {
@@ -314,9 +376,10 @@ const publicTv = ({ vegaToken, ...t }) => ({ ...t, paired: t.type === "vega" ? !
 app.get("/api/tvs", (req, res) => res.json(tvs.map(publicTv)));
 
 app.post("/api/tvs", (req, res) => {
-  const { name, ip, type, adbPort } = req.body || {};
+  const { name, ip, type, adbPort, mac } = req.body || {};
   if (!name || !ip || !TYPES.includes(type)) return res.status(400).json({ error: "Name, IP address and type are required." });
   const tv = { id: Date.now().toString(36), name: name.trim(), ip: ip.trim(), type };
+  if (normMac(mac)) tv.mac = normMac(mac);
   if (type === "googletv" || type === "firetv") tv.adbPort = Number(adbPort) || 5555;
   tvs.push(tv); saveTvs(tvs); res.json(tv);
 });
@@ -324,9 +387,10 @@ app.post("/api/tvs", (req, res) => {
 app.put("/api/tvs/:id", (req, res) => {
   const tv = findTv(req.params.id);
   if (!tv) return res.status(404).json({ error: "TV not found" });
-  const { name, ip, type, adbPort } = req.body || {};
+  const { name, ip, type, adbPort, mac } = req.body || {};
   if (name) tv.name = name.trim();
-  if (ip) tv.ip = ip.trim();
+  if (ip && ip.trim() !== tv.ip) { tv.ip = ip.trim(); delete tv.mac; }
+  if (mac !== undefined) { if (normMac(mac)) tv.mac = normMac(mac); else if (!String(mac).trim()) delete tv.mac; }
   if (type && TYPES.includes(type)) tv.type = type;
   if (tv.type === "googletv" || tv.type === "firetv") tv.adbPort = Number(adbPort) || tv.adbPort || 5555; else delete tv.adbPort;
   if (tv.type !== "vega") { delete tv.vegaToken; delete tv.vegaScheme; }

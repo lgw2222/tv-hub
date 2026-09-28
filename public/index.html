@@ -309,6 +309,7 @@ details summary{cursor:pointer;color:var(--ink);font-weight:600;font-size:15px}
     <div class="form">
       <label>Name<input id="fName" placeholder="Living room"></label>
       <label>IP address<input id="fIp" placeholder="192.168.1.50" inputmode="decimal"></label>
+      <label>MAC address (optional, lets the hub turn the TV on from off)<input id="fMac" placeholder="Filled in automatically once the TV is seen on" autocapitalize="off"></label>
       <div class="seg" role="group" aria-label="TV type">
         <button type="button" data-type="roku" aria-pressed="true">Roku</button>
         <button type="button" data-type="googletv" aria-pressed="false">Google TV</button>
@@ -326,6 +327,13 @@ details summary{cursor:pointer;color:var(--ink);font-weight:600;font-size:15px}
         <button class="btn" id="saveTv">Save TV</button>
       </div>
     </div>
+
+    <h2>Turning TVs on when they're fully off</h2>
+    <div class="form"><p class="hint" style="margin:0">A TV that's fully off drops off Wi-Fi, so nothing can reach it until it wakes. The hub sends a wake-up signal to the TV's MAC address, but the TV has to be set to listen:<br>
+      <b>Roku TVs:</b> Settings, System, Power, <b>Fast TV start: On</b>.<br>
+      <b>Google TVs:</b> Settings, System, Power &amp; energy, turn on <b>network standby</b> / <b>Remote start</b> / <b>Wake on LAN</b> (name varies by brand).<br>
+      <b>Fire TV built into the TV:</b> Settings, Display &amp; Sounds, Power Controls, turn on <b>wake</b> / <b>network standby</b> options.<br>
+      <b>Fire Sticks:</b> plug the stick's power into a wall outlet, not the TV's USB port, and turn on <b>HDMI-CEC</b> on the TV so the stick can switch the TV on.</p></div>
 
     <h2>Find Rokus automatically</h2>
     <button class="btn ghost" id="scanBtn" style="width:100%">Scan my Wi-Fi for Rokus</button>
@@ -530,7 +538,7 @@ function setType(t) {
 $$(".seg button").forEach((b) => (b.onclick = () => setType(b.dataset.type)));
 
 function resetForm() {
-  editingId = null; $("#fName").value = ""; $("#fIp").value = ""; $("#fPort").value = "5555";
+  editingId = null; $("#fName").value = ""; $("#fIp").value = ""; $("#fMac").value = ""; $("#fPort").value = "5555";
   setType("roku"); $("#formTitle").textContent = "Add a TV"; $("#saveTv").textContent = "Save TV"; $("#cancelEdit").hidden = true;
 }
 $("#cancelEdit").onclick = resetForm;
@@ -568,7 +576,7 @@ function renderList() {
     }
     const ed = document.createElement("button"); ed.className = "btn ghost"; ed.textContent = "Edit";
     ed.onclick = () => {
-      editingId = tv.id; $("#fName").value = tv.name; $("#fIp").value = tv.ip; $("#fPort").value = tv.adbPort || 5555;
+      editingId = tv.id; $("#fName").value = tv.name; $("#fIp").value = tv.ip; $("#fMac").value = tv.mac || ""; $("#fPort").value = tv.adbPort || 5555;
       setType(tv.type); $("#formTitle").textContent = `Edit ${tv.name}`; $("#saveTv").textContent = "Save changes"; $("#cancelEdit").hidden = false;
       $("#fName").focus();
     };
@@ -585,7 +593,7 @@ function renderList() {
 }
 
 $("#saveTv").onclick = async () => {
-  const body = { name: $("#fName").value, ip: $("#fIp").value, type: formType, adbPort: $("#fPort").value };
+  const body = { name: $("#fName").value, ip: $("#fIp").value, type: formType, adbPort: $("#fPort").value, mac: $("#fMac").value };
   if (!body.name.trim() || !body.ip.trim()) return toast("Enter a name and IP address", true);
   try {
     const tv = editingId ? await api(`/api/tvs/${editingId}`, { method: "PUT", body }) : await api("/api/tvs", { method: "POST", body });
