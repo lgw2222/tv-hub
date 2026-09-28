@@ -177,6 +177,98 @@ async function vegaKey(tv, cmd) {
   }
 }
 
+// ---------- Logitech Harmony Hub (infrared power) ----------
+// IR works even when a TV is fully off, so the hub can ask Harmony to send the TV's own power code.
+// Local API: POST :8088 for the hub id, then a WebSocket on :8088 for config and commands.
+const HARMONY_FILE = path.join(__dirname, "harmony.json");
+let harmony = (() => { try { return JSON.parse(fs.readFileSync(HARMONY_FILE, "utf8")); } catch { return { ip: "" }; } })();
+const saveHarmony = () => fs.writeFileSync(HARMONY_FILE, JSON.stringify(harmony, null, 2));
+function harmonyHubId(ip) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({ id: 1, cmd: "setup.account?getProvisionInfo", params: {} });
+    const req = http.request({ host: ip, port: 8088, path: "/", method: "POST", timeout: 5000,
+      headers: { "Content-Type": "application/json", Accept: "utf-8", Origin: "http://sl.dhg.myharmony.com", "Content-Length": Buffer.byteLength(body) } }, (res) => {
+      let out = ""; res.on("data", (c) => (out += c));
+      res.on("end", () => { try { const j = JSON.parse(out); const id = j.data && (j.data.activeRemoteId || j.data.remoteId); id ? resolve(String(id)) : reject(new Error("Harmony Hub didn't return its id")); } catch { reject(new Error("Unexpected answer from Harmony Hub")); } });
+    });
+    req.on("timeout", () => req.destroy(new Error("timeout")));
+    req.on("error", (e) => reject(new Error(`Can't reach the Harmony Hub at ${ip} (${e.message}). Check the IP, and in the Harmony app turn on Settings > Harmony Setup > Add/Edit Devices & Activities > Remote & Hub > Enable XMPP.`)));
+    req.write(body); req.end();
+  });
+}
+let hws = null, hwsReady = null, hwsSeq = 1;
+const hwsWait = new Map();
+async function harmonySocket() {
+  if (!harmony.ip) throw new Error("Set up the Harmony Hub first (Manage TVs, Harmony Hub).");
+  if (hws && hws.readyState === 1) return hws;
+  if (hwsReady) return hwsReady;
+  if (typeof WebSocket !== "function") throw new Error("Harmony needs Node.js 22 or newer on the PC. Update Node from nodejs.org.");
+  hwsReady = (async () => {
+    if (!harmony.hubId) { harmony.hubId = await harmonyHubId(harmony.ip); saveHarmony(); }
+    const ws = new WebSocket(`ws://${harmony.ip}:8088/?domain=svcs.myharmony.com&hubId=${harmony.hubId}`);
+    await new Promise((res, rej) => {
+      const t = setTimeout(() => rej(new Error("Harmony Hub didn't answer")), 6000);
+      ws.onopen = () => { clearTimeout(t); res(); };
+      ws.onerror = () => { clearTimeout(t); rej(new Error(`Can't connect to the Harmony Hub at ${harmony.ip}`)); };
+    });
+    ws.onmessage = (ev) => {
+      let m; try { m = JSON.parse(typeof ev.data === "string" ? ev.data : Buffer.from(ev.data).toString()); } catch { return; }
+      const w = hwsWait.get(String(m.id));
+      if (w) { hwsWait.delete(String(m.id)); w(m); }
+    };
+    ws.onclose = () => { hws = null; };
+    const ping = setInterval(() => { if (ws.readyState !== 1) return clearInterval(ping); try { ws.send(JSON.stringify({ hubId: harmony.hubId, timeout: 30, hbus: { cmd: "vnd.logitech.connect/vnd.logitech.pingvnd.logitech.ping", id: String(hwsSeq++), params: {} } })); } catch {} }, 50000);
+    hws = ws;
+    return ws;
+  })().finally(() => { hwsReady = null; });
+  return hwsReady;
+}
+async function harmonyCall(cmd, params, wait = true) {
+  let ws;
+  try { ws = await harmonySocket(); }
+  catch (e) { if (harmony.hubId) { delete harmony.hubId; saveHarmony(); } throw e; }
+  const id = String(hwsSeq++);
+  const msg = JSON.stringify({ hubId: harmony.hubId, timeout: 30, hbus: { cmd, id, params } });
+  if (!wait) { ws.send(msg); return null; }
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => { hwsWait.delete(id); reject(new Error("Harmony Hub timed out")); }, 8000);
+    hwsWait.set(id, (m) => { clearTimeout(t); resolve(m); });
+    ws.send(msg);
+  });
+}
+let harmonyCache = { at: 0, devices: [] };
+async function harmonyDevices(force) {
+  if (!force && harmonyCache.devices.length && Date.now() - harmonyCache.at < 10 * 60 * 1000) return harmonyCache.devices;
+  const r = await harmonyCall("vnd.logitech.harmony/vnd.logitech.harmony.engine?config", { verb: "get" });
+  const devs = ((r && r.data && r.data.device) || []).map((d) => {
+    const cmds = [];
+    for (const g of d.controlGroup || []) for (const f of g.function || []) cmds.push({ name: f.name, label: f.label || f.name, group: g.name, action: f.action });
+    return { id: String(d.id), label: d.label, model: d.model, manufacturer: d.manufacturer, type: d.type, commands: cmds };
+  });
+  harmonyCache = { at: Date.now(), devices: devs };
+  return devs;
+}
+function harmonyPick(dev, want) {
+  const names = { poweron: ["PowerOn", "On"], poweroff: ["PowerOff", "Off"], power: ["PowerToggle", "Power"] }[want] || [want];
+  for (const n of names) { const c = dev.commands.find((x) => x.name.toLowerCase() === n.toLowerCase()); if (c) return c; }
+  // fall back to the toggle for on/off if the device has no discrete codes
+  if (want !== "power") return harmonyPick(dev, "power");
+  // no toggle code: "Power" acts as "Turn on" (the remote's off button still works through Turn off)
+  return dev.commands.find((x) => /^(poweron|on)$/i.test(x.name)) || null;
+}
+async function harmonySend(tv, want) {
+  const devs = await harmonyDevices();
+  const dev = devs.find((d) => d.id === String(tv.harmonyDevice));
+  if (!dev) throw new Error(`${tv.name}'s Harmony device wasn't found. Pick it again in Manage TVs.`);
+  const c = harmonyPick(dev, want);
+  if (!c) throw new Error(`${dev.label} has no power command in Harmony.`);
+  const base = { timestamp: "0", verb: "render", action: c.action };
+  await harmonyCall("vnd.logitech.harmony/vnd.logitech.harmony.engine?holdAction", { status: "press", ...base }, false);
+  await new Promise((r) => setTimeout(r, 150));
+  await harmonyCall("vnd.logitech.harmony/vnd.logitech.harmony.engine?holdAction", { status: "release", ...base }, false);
+  return `${dev.label}: ${c.label}`;
+}
+
 // ---------- Wake-on-LAN ----------
 // When a TV is fully off its network goes quiet, so commands can't reach it. A "magic packet"
 // to its MAC address wakes TVs that support it (Roku TVs with Fast TV start, many Google/Fire TVs
@@ -234,6 +326,13 @@ async function withWake(tv, fn, wakeIt) {
 // ---------- device-agnostic actions ----------
 async function sendKey(tv, cmd) {
   const waking = cmd === "poweron" || cmd === "power";
+  const powerCmd = cmd === "poweron" || cmd === "poweroff" || cmd === "power";
+  if (powerCmd && tv.harmonyDevice && harmony.ip) {
+    // Infrared through Harmony is the most reliable way to switch a TV on or off.
+    // Also send Wake-on-LAN so the TV's network comes up quickly for the next command.
+    if (waking && tv.mac) sendWol(tv);
+    return harmonySend(tv, cmd);
+  }
   if (waking && tv.mac) sendWol(tv); // fire a wake packet up front; harmless if the TV is already on
   return withWake(tv, () => sendKeyRaw(tv, cmd), waking);
 }
@@ -376,9 +475,10 @@ const publicTv = ({ vegaToken, ...t }) => ({ ...t, paired: t.type === "vega" ? !
 app.get("/api/tvs", (req, res) => res.json(tvs.map(publicTv)));
 
 app.post("/api/tvs", (req, res) => {
-  const { name, ip, type, adbPort, mac } = req.body || {};
+  const { name, ip, type, adbPort, mac, harmonyDevice } = req.body || {};
   if (!name || !ip || !TYPES.includes(type)) return res.status(400).json({ error: "Name, IP address and type are required." });
   const tv = { id: Date.now().toString(36), name: name.trim(), ip: ip.trim(), type };
+  if (harmonyDevice) tv.harmonyDevice = String(harmonyDevice);
   if (normMac(mac)) tv.mac = normMac(mac);
   if (type === "googletv" || type === "firetv") tv.adbPort = Number(adbPort) || 5555;
   tvs.push(tv); saveTvs(tvs); res.json(tv);
@@ -387,7 +487,8 @@ app.post("/api/tvs", (req, res) => {
 app.put("/api/tvs/:id", (req, res) => {
   const tv = findTv(req.params.id);
   if (!tv) return res.status(404).json({ error: "TV not found" });
-  const { name, ip, type, adbPort, mac } = req.body || {};
+  const { name, ip, type, adbPort, mac, harmonyDevice } = req.body || {};
+  if (harmonyDevice !== undefined) { if (harmonyDevice) tv.harmonyDevice = String(harmonyDevice); else delete tv.harmonyDevice; }
   if (name) tv.name = name.trim();
   if (ip && ip.trim() !== tv.ip) { tv.ip = ip.trim(); delete tv.mac; }
   if (mac !== undefined) { if (normMac(mac)) tv.mac = normMac(mac); else if (!String(mac).trim()) delete tv.mac; }
@@ -489,6 +590,26 @@ async function runSteps(steps) {
   }
   return log;
 }
+app.get("/api/harmony", (req, res) => res.json({ ip: harmony.ip || "", connected: !!harmony.hubId }));
+app.post("/api/harmony", wrap(async (req, res) => {
+  const ip = String((req.body || {}).ip || "").trim();
+  if (hws) { try { hws.close(); } catch {} hws = null; }
+  harmony = { ip }; harmonyCache = { at: 0, devices: [] }; saveHarmony();
+  if (!ip) return res.json({ ok: true, devices: [] });
+  const devs = await harmonyDevices(true);
+  res.json({ ok: true, devices: devs.map(({ id, label, manufacturer, model }) => ({ id, label, manufacturer, model })) });
+}));
+app.get("/api/harmony/devices", wrap(async (req, res) => {
+  if (!harmony.ip) return res.json({ devices: [] });
+  const devs = await harmonyDevices(req.query.refresh === "1");
+  res.json({ devices: devs.map(({ id, label, manufacturer, model, commands }) => ({ id, label, manufacturer, model, power: commands.filter((c) => c.group === "Power").map((c) => c.name) })) });
+}));
+app.post("/api/tvs/:id/harmony-test", wrap(async (req, res) => {
+  const tv = findTv(req.params.id);
+  if (!tv || !tv.harmonyDevice) return res.status(400).json({ error: "Pick a Harmony device for this TV first." });
+  res.json({ ok: true, sent: await harmonySend(tv, "poweron") });
+}));
+
 app.get("/api/presets", (req, res) => res.json(presets));
 app.post("/api/presets", (req, res) => {
   const { name, steps } = req.body || {};

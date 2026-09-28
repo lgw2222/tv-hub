@@ -309,6 +309,7 @@ details summary{cursor:pointer;color:var(--ink);font-weight:600;font-size:15px}
     <div class="form">
       <label>Name<input id="fName" placeholder="Living room"></label>
       <label>IP address<input id="fIp" placeholder="192.168.1.50" inputmode="decimal"></label>
+      <label>Harmony device for power (optional, most reliable on/off)<select id="fHarmony"><option value="">None</option></select></label>
       <label>MAC address (optional, lets the hub turn the TV on from off)<input id="fMac" placeholder="Filled in automatically once the TV is seen on" autocapitalize="off"></label>
       <div class="seg" role="group" aria-label="TV type">
         <button type="button" data-type="roku" aria-pressed="true">Roku</button>
@@ -326,6 +327,14 @@ details summary{cursor:pointer;color:var(--ink);font-weight:600;font-size:15px}
         <button class="btn ghost" id="cancelEdit" hidden>Cancel</button>
         <button class="btn" id="saveTv">Save TV</button>
       </div>
+    </div>
+
+    <h2>Harmony Hub</h2>
+    <div class="form">
+      <p class="hint" style="margin:0">Harmony sends the TV's own infrared power code, which works even when the TV is fully off. Add each TV as a device in the Harmony app first, and turn on <b>Enable XMPP</b> in the app (Settings, Harmony Setup, Add/Edit Devices &amp; Activities, Remote &amp; Hub). The hub needs to be able to "see" the TVs, or use Harmony IR mini blasters for TVs in other spots.</p>
+      <label>Harmony Hub IP<input id="hIp" placeholder="192.168.1.23" inputmode="decimal"></label>
+      <div class="actions"><button class="btn" id="hSave">Connect</button></div>
+      <p class="hint" id="hStatus" style="margin:0"></p>
     </div>
 
     <h2>Turning TVs on when they're fully off</h2>
@@ -522,7 +531,27 @@ setInterval(() => document.visibilityState === "visible" && refreshStatus(false)
 document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && refreshStatus(false));
 
 // ---------- manage TVs ----------
-function openSheet() { $("#sheet").classList.add("open"); $("#sheet").setAttribute("aria-hidden", "false"); renderList(); }
+let harmonyDevs = [];
+function fillHarmony(sel) {
+  const s = $("#fHarmony");
+  s.innerHTML = '<option value="">None</option>' + harmonyDevs.map((d) => `<option value="${d.id}">${d.label}${d.power && !d.power.length ? " (no power code)" : ""}</option>`).join("");
+  s.value = sel && harmonyDevs.some((d) => d.id === sel) ? sel : "";
+  s.closest("label").hidden = !harmonyDevs.length;
+}
+async function loadHarmony() {
+  try {
+    const h = await api("/api/harmony"); $("#hIp").value = h.ip || "";
+    if (h.ip) { harmonyDevs = (await api("/api/harmony/devices")).devices; $("#hStatus").textContent = `Connected. ${harmonyDevs.length} Harmony devices found.`; }
+    else { harmonyDevs = []; $("#hStatus").textContent = "Not set up."; }
+  } catch (e) { harmonyDevs = []; $("#hStatus").textContent = e.message; }
+  fillHarmony($("#fHarmony").value);
+}
+$("#hSave").onclick = async () => {
+  $("#hStatus").textContent = "Connecting…";
+  try { const r = await api("/api/harmony", { method: "POST", body: { ip: $("#hIp").value } }); harmonyDevs = r.devices; $("#hStatus").textContent = r.devices.length ? `Connected. ${r.devices.length} Harmony devices found. Edit each TV and pick its Harmony device.` : "Saved."; fillHarmony(""); await loadHarmony(); renderList(); }
+  catch (e) { $("#hStatus").textContent = e.message; }
+};
+function openSheet() { loadHarmony(); $("#sheet").classList.add("open"); $("#sheet").setAttribute("aria-hidden", "false"); renderList(); }
 function closeSheet() { $("#sheet").classList.remove("open"); $("#sheet").setAttribute("aria-hidden", "true"); resetForm(); }
 $("#openSettings").onclick = openSheet;
 $("#closeSettings").onclick = closeSheet;
@@ -538,7 +567,7 @@ function setType(t) {
 $$(".seg button").forEach((b) => (b.onclick = () => setType(b.dataset.type)));
 
 function resetForm() {
-  editingId = null; $("#fName").value = ""; $("#fIp").value = ""; $("#fMac").value = ""; $("#fPort").value = "5555";
+  editingId = null; $("#fName").value = ""; $("#fIp").value = ""; $("#fMac").value = ""; $("#fHarmony").value = ""; $("#fPort").value = "5555";
   setType("roku"); $("#formTitle").textContent = "Add a TV"; $("#saveTv").textContent = "Save TV"; $("#cancelEdit").hidden = true;
 }
 $("#cancelEdit").onclick = resetForm;
@@ -574,9 +603,15 @@ function renderList() {
       };
       row.appendChild(c);
     }
+    if (tv.harmonyDevice) {
+      const h = document.createElement("button"); h.className = "btn ghost"; h.textContent = "Test IR";
+      h.title = "Sends Power On through Harmony";
+      h.onclick = async () => { try { const r = await api(`/api/tvs/${tv.id}/harmony-test`, { method: "POST" }); toast(`Sent ${r.sent}`); } catch (e) { toast(e.message, true); } };
+      row.appendChild(h);
+    }
     const ed = document.createElement("button"); ed.className = "btn ghost"; ed.textContent = "Edit";
     ed.onclick = () => {
-      editingId = tv.id; $("#fName").value = tv.name; $("#fIp").value = tv.ip; $("#fMac").value = tv.mac || ""; $("#fPort").value = tv.adbPort || 5555;
+      editingId = tv.id; $("#fName").value = tv.name; $("#fIp").value = tv.ip; $("#fMac").value = tv.mac || ""; fillHarmony(tv.harmonyDevice || ""); $("#fPort").value = tv.adbPort || 5555;
       setType(tv.type); $("#formTitle").textContent = `Edit ${tv.name}`; $("#saveTv").textContent = "Save changes"; $("#cancelEdit").hidden = false;
       $("#fName").focus();
     };
@@ -593,7 +628,7 @@ function renderList() {
 }
 
 $("#saveTv").onclick = async () => {
-  const body = { name: $("#fName").value, ip: $("#fIp").value, type: formType, adbPort: $("#fPort").value, mac: $("#fMac").value };
+  const body = { name: $("#fName").value, ip: $("#fIp").value, type: formType, adbPort: $("#fPort").value, mac: $("#fMac").value, harmonyDevice: $("#fHarmony").value };
   if (!body.name.trim() || !body.ip.trim()) return toast("Enter a name and IP address", true);
   try {
     const tv = editingId ? await api(`/api/tvs/${editingId}`, { method: "PUT", body }) : await api("/api/tvs", { method: "POST", body });

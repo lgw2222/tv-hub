@@ -58,6 +58,14 @@ Keep the window open while you use the remote.
 - The app buttons only show apps installed on the TVs you picked.
 - On a PC, arrow keys, Enter and Backspace work too.
 
+## Harmony Hub (most reliable power)
+A TV that's fully off drops off Wi-Fi, but it always listens for its own remote's infrared signal.
+If you have a Logitech Harmony Hub, the hub can send each TV's power code through it:
+1. In the Harmony app, add each TV as a device, and turn on Settings > Harmony Setup > Add/Edit Devices & Activities > Remote & Hub > Enable XMPP.
+2. In Manage TVs > Harmony Hub, enter the Harmony Hub's IP and tap Connect.
+3. Edit each TV and pick its Harmony device. Use Test IR to check.
+Turn on / Turn off / Power then go through Harmony for that TV. Everything else still goes over Wi-Fi.
+
 ## Presets
 Tap **+ New preset**, name it (like "Game Day"), and add steps: pick a TV (or All TVs) and an action:
 turn on/off, open an app, press a button, type text, or wait a few seconds. **Test it** runs it without saving.

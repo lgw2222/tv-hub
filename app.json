@@ -12,6 +12,7 @@
   ],
   "keep": [
     "tvs.json",
-    "presets.json"
+    "presets.json",
+    "harmony.json"
   ]
 }
