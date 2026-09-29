@@ -66,7 +66,11 @@ const APPS = [
   { key: "spotify",   name: "Spotify",     roku: ["22297"],  android: ["com.spotify.tv.android"] },
   { key: "plex",      name: "Plex",        roku: ["13535"],  android: ["com.plexapp.android"] },
   { key: "pluto",     name: "Pluto TV",    roku: ["74519"],  android: ["tv.pluto.android"] },
+  { key: "mlb",       name: "MLB",         roku: [], rokuName: /^MLB(\.TV)?$/i, android: ["com.bamnetworks.mobile.android.gameday.atbat"],
+    asin: "B007FIJ9EI", rokuStore: "https://channelstore.roku.com/details/d281bf597911a8730e5d0d8aecdf670b/mlb" },
 ];
+// app-store info for installing (Fire TV: Amazon ASIN, Roku: channel-store page for apps without a known number)
+const rokuIdsFor = (entry, tvId) => { const names = (appCache.get(tvId) || {}).names || new Map(); const extra = entry.rokuName ? [...names].filter(([, n]) => entry.rokuName.test(n)).map(([id]) => id) : []; return [...entry.roku, ...extra]; };
 
 // which package list applies to a device
 const pkgsFor = (tv, entry) => (tv.type === "firetv" && entry.fire ? entry.fire : entry.android);
@@ -384,7 +388,10 @@ async function installedIds(tv) {
   let ids;
   if (tv.type === "roku") {
     const xml = await rokuReq(tv, "GET", "/query/apps");
-    ids = new Set([...xml.matchAll(/<app id="(\d+)"/g)].map((m) => m[1]));
+    const all = [...xml.matchAll(/<app id="(\d+)"[^>]*>([^<]*)<\/app>/g)];
+    ids = new Set(all.map((m) => m[1]));
+    appCache.set(tv.id, { at: Date.now(), ids, names: new Map(all.map((m) => [m[1], m[2].replace(/&amp;/g, "&").trim()])) });
+    return ids;
   } else {
     const out = await adbShell(tv, "pm", "list", "packages");
     ids = new Set(out.split("\n").map((l) => l.replace("package:", "").trim()).filter(Boolean));
@@ -394,9 +401,9 @@ async function installedIds(tv) {
 }
 
 async function availableApps(tv) {
-  if (tv.type === "vega") return APPS.filter((a) => a.fire || /netflix|disney|max|peacock|paramount|espn|spotify|plex|pluto|youtubetv/.test(a.key)).map((a) => a.key);
+  if (tv.type === "vega") return APPS.filter((a) => a.fire || /netflix|disney|max|peacock|paramount|espn|spotify|plex|pluto|youtubetv|mlb/.test(a.key)).map((a) => a.key);
   const ids = await installedIds(tv);
-  return APPS.filter((a) => (tv.type === "roku" ? a.roku : pkgsFor(tv, a)).some((id) => ids.has(id))).map((a) => a.key);
+  return APPS.filter((a) => (tv.type === "roku" ? rokuIdsFor(a, tv.id) : pkgsFor(tv, a)).some((id) => ids.has(id))).map((a) => a.key);
 }
 
 async function launchApp(tv, key) {
@@ -411,8 +418,9 @@ async function launchApp(tv, key) {
     throw new Error(`Couldn't open ${entry.name} on ${tv.name}${err ? ": " + err.message : ""}`);
   }
   const ids = await installedIds(tv).catch(() => new Set());
-  const list = tv.type === "roku" ? entry.roku : pkgsFor(tv, entry);
+  const list = tv.type === "roku" ? rokuIdsFor(entry, tv.id) : pkgsFor(tv, entry);
   const id = list.find((x) => ids.has(x)) || list[0];
+  if (!id) throw new Error(`${entry.name} isn't installed on ${tv.name}`);
   if (!ids.has(id) && ids.size) throw new Error(`${entry.name} isn't installed on ${tv.name}`);
   if (tv.type === "roku") return rokuReq(tv, "POST", `/launch/${id}`);
   const out = await adbShell(tv, "monkey", "-p", id, "-c", "android.intent.category.LEANBACK_LAUNCHER", "1");
@@ -538,7 +546,207 @@ app.get("/api/apps", wrap(async (req, res) => {
   res.json({ catalog: APPS.map(({ key, name }) => ({ key, name })), per });
 }));
 
+
+// ---------- installing apps on the TVs ----------
+async function installApp(tv, key) {
+  const e = APPS.find((a) => a.key === key);
+  if (!e) throw new Error("Unknown app");
+  appCache.delete(tv.id);
+  const have = await availableApps(tv).catch(() => null);
+  if (have && have.includes(key) && tv.type !== "vega") return `${e.name} is already installed`;
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  if (tv.type === "roku") {
+    const id = e.roku[0];
+    if (id) { await rokuReq(tv, "POST", `/install/${id}`); await sleep(4500); await rokuReq(tv, "POST", "/keypress/Select").catch(() => {}); return "Opened the Roku Channel Store and pressed Add. Check the TV screen."; }
+    throw Object.assign(new Error(`Add ${e.name} from the Roku website: it installs on every Roku on your account at once.`), { link: e.rokuStore });
+  }
+  if (tv.type === "vega") throw Object.assign(new Error(`Send ${e.name} to this Fire Stick from Amazon's website ("Deliver to" → pick the stick).`), { link: e.asin ? `https://www.amazon.com/dp/${e.asin}` : "" });
+  const pkg = e.android[0];
+  if (tv.type === "firetv") {
+    if (!e.asin) throw new Error(`No Amazon Appstore listing saved for ${e.name}.`);
+    await adbShell(tv, "am", "start", "-a", "android.intent.action.VIEW", "-d", `amzn://apps/android?asin=${e.asin}`);
+  } else {
+    await adbShell(tv, "am", "start", "-a", "android.intent.action.VIEW", "-d", `market://details?id=${pkg}`);
+  }
+  await sleep(6000);
+  await adbShell(tv, "input", "keyevent", "KEYCODE_DPAD_CENTER").catch(() => {});
+  return tv.type === "firetv" ? "Opened the Appstore page and pressed Get/Download. Check the TV screen." : "Opened Google Play and pressed Install. Check the TV screen.";
+}
+app.post("/api/install", wrap(async (req, res) => {
+  const { app: key, ids } = req.body || {};
+  const results = await Promise.all((ids || []).map(findTv).filter(Boolean).map(async (tv) => {
+    try { return { id: tv.id, name: tv.name, ok: true, msg: await installApp(tv, key) }; }
+    catch (e) { return { id: tv.id, name: tv.name, ok: false, error: e.message, link: e.link || "" }; }
+  }));
+  res.json({ results });
+}));
+app.get("/api/apps/status", wrap(async (req, res) => {
+  const key = String(req.query.app || "");
+  const out = await Promise.all(tvs.map(async (tv) => {
+    if (tv.type === "vega") return { id: tv.id, name: tv.name, type: tv.type, installed: null };
+    appCache.delete(tv.id);
+    const have = await availableApps(tv).catch(() => null);
+    return { id: tv.id, name: tv.name, type: tv.type, installed: have ? have.includes(key) : null };
+  }));
+  res.json({ tvs: out });
+}));
+
+// ---------- search any app across the TVs, then install it where it's missing ----------
+const squash = (t) => String(t || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+function pkgLabel(pkg, qn) {
+  const known = pkgToApp(pkg); if (known) return known;
+  const segs = String(pkg).split(".").filter((w) => !/^(com|tv|android|amazon|google|app|apps|firetv|mobile|ott|prod|release)$/i.test(w));
+  const pick = segs.find((w) => squash(w).includes(qn)) || segs[segs.length - 1] || pkg;
+  return pick.charAt(0).toUpperCase() + pick.slice(1);
+}
+app.get("/api/appsearch", wrap(async (req, res) => {
+  const q = String(req.query.q || "").trim(); const qn = squash(q);
+  if (qn.length < 2) return res.json({ q, results: [] });
+  const inv = await Promise.all(tvs.map(async (tv) => {
+    if (tv.type === "vega") return { tv, ok: false };
+    try { const ids = await installedIds(tv); return { tv, ok: true, ids, names: (appCache.get(tv.id) || {}).names || new Map() }; }
+    catch { return { tv, ok: false }; }
+  }));
+  const cands = [];
+  const add = (c) => {
+    const key = squash(c.name);
+    let hit = cands.find((x) => squash(x.name) === key || (c.rokuId && x.rokuId === c.rokuId) || (c.pkg && x.pkg === c.pkg));
+    if (!hit) { hit = { name: c.name, rokuId: "", pkg: "", asin: "", rokuStore: "" }; cands.push(hit); }
+    for (const k of ["rokuId", "pkg", "asin", "rokuStore"]) if (c[k] && !hit[k]) hit[k] = c[k];
+  };
+  for (const a of APPS) if (squash(a.name).includes(qn) || qn.includes(squash(a.name))) add({ name: a.name, rokuId: a.roku[0] || "", pkg: a.android[0], asin: a.asin, rokuStore: a.rokuStore });
+  for (const x of inv) if (x.ok && x.tv.type === "roku") for (const [id, n] of x.names) if (squash(n).includes(qn)) add({ name: n, rokuId: id });
+  const pkgs = new Set();
+  for (const x of inv) if (x.ok && x.tv.type !== "roku") for (const p of x.ids) if (squash(p).includes(qn) && !/^com\.(android|google\.android\.(gms|gsf|tv\.remote|katniss))/.test(p)) pkgs.add(p);
+  for (const p of pkgs) {
+    // attach to a same-named Roku result when there's an obvious match, otherwise list it by itself
+    const label = pkgLabel(p, qn);
+    const lone = cands.filter((c) => c.rokuId && !c.pkg);
+    const match = cands.find((c) => !c.pkg && (squash(c.name).includes(squash(label)) || squash(label).includes(squash(c.name)))) || (lone.length === 1 && pkgs.size === 1 ? lone[0] : null);
+    if (match) match.pkg = p; else add({ name: label, pkg: p });
+  }
+  const results = cands.slice(0, 12).map((c) => ({ ...c, tvs: inv.map((x) => ({ id: x.tv.id, name: x.tv.name, type: x.tv.type,
+    installed: !x.ok ? null : x.tv.type === "roku" ? (c.rokuId ? x.ids.has(c.rokuId) : false) : (c.pkg ? x.ids.has(c.pkg) : false) })) }));
+  res.json({ q, results });
+}));
+async function installFound(tv, c, q) {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  appCache.delete(tv.id);
+  const name = c.name || q;
+  if (tv.type === "roku") {
+    if (c.rokuId) { await rokuReq(tv, "POST", `/install/${c.rokuId}`); await sleep(4500); await rokuReq(tv, "POST", "/keypress/Select").catch(() => {}); return `Opened ${name} in the Roku Channel Store and pressed Add. Check the TV.`; }
+    await rokuReq(tv, "POST", `/search/browse?keyword=${encodeURIComponent(q || name)}&type=channel`).catch(() => {});
+    throw Object.assign(new Error(`Showing Roku search results for "${q || name}" on the TV; pick it with the remote. Or add it from Roku's website (adds to every Roku).`), { link: c.rokuStore || `https://channelstore.roku.com/search/${encodeURIComponent(q || name)}` });
+  }
+  if (tv.type === "vega") throw Object.assign(new Error(`Send ${name} to this Fire Stick from Amazon's website ("Deliver to").`), { link: c.asin ? `https://www.amazon.com/dp/${c.asin}` : `https://www.amazon.com/s?k=${encodeURIComponent(q || name)}&i=mobile-apps` });
+  const uri = tv.type === "firetv"
+    ? (c.asin ? `amzn://apps/android?asin=${c.asin}` : c.pkg ? `amzn://apps/android?p=${c.pkg}` : `amzn://apps/android?s=${encodeURIComponent(q || name)}`)
+    : (c.pkg ? `market://details?id=${c.pkg}` : `market://search?q=${encodeURIComponent(q || name)}&c=apps`);
+  await adbShell(tv, "am", "start", "-a", "android.intent.action.VIEW", "-d", `'${uri}'`);
+  if (!c.pkg && !c.asin) return `Opened the ${tv.type === "firetv" ? "Appstore" : "Google Play"} search for "${q || name}" on the TV; pick it with the remote.`;
+  await sleep(6000);
+  await adbShell(tv, "input", "keyevent", "KEYCODE_DPAD_CENTER").catch(() => {});
+  return `Opened ${name} in ${tv.type === "firetv" ? "the Appstore" : "Google Play"} and pressed ${tv.type === "firetv" ? "Get" : "Install"}. Check the TV.`;
+}
+app.post("/api/appinstall", wrap(async (req, res) => {
+  const { app: c = {}, ids = [], q = "" } = req.body || {};
+  const results = await Promise.all(ids.map(findTv).filter(Boolean).map(async (tv) => {
+    try { return { id: tv.id, name: tv.name, ok: true, msg: await installFound(tv, c, q) }; }
+    catch (e) { return { id: tv.id, name: tv.name, ok: false, error: e.message, link: e.link || "" }; }
+  }));
+  res.json({ results });
+}));
+
 // Vega pairing: step 1 shows a PIN on the TV, step 2 sends it back and stores the token
+
+// ---------- what's on each TV: screenshots (Fire TV / Google TV over ADB) and "now playing" (all) ----------
+const shotCache = new Map(); // tvId -> { at, buf, pending }
+function adbScreencap(tv) {
+  return new Promise((resolve, reject) => {
+    execFile(ADB, ["-s", serial(tv), "exec-out", "screencap", "-p"], { timeout: 12000, encoding: "buffer", maxBuffer: 40 * 1024 * 1024, windowsHide: true }, (err, out, stderr) => {
+      if (err) return reject(new Error(err.code === "ENOENT" ? "ADB isn't installed." : (String(stderr || "") || err.message).trim()));
+      const i = out.indexOf(Buffer.from([0x89, 0x50, 0x4e, 0x47])); // skip any junk before the PNG header
+      if (i < 0) return reject(new Error("The TV didn't send a picture."));
+      resolve(i ? out.subarray(i) : out);
+    });
+  });
+}
+app.get("/api/tvs/:id/screen", wrap(async (req, res) => {
+  const tv = findTv(req.params.id);
+  if (!tv) return res.status(404).json({ error: "TV not found" });
+  if (tv.type !== "firetv" && tv.type !== "googletv") return res.status(415).json({ error: tv.type === "roku" ? "Rokus don't allow screen pictures." : "This Fire Stick doesn't allow screen pictures." });
+  let c = shotCache.get(tv.id);
+  if (c && c.buf && Date.now() - c.at < 3500) return res.type("png").set("Cache-Control", "no-store").send(c.buf);
+  if (!c || !c.pending) {
+    c = c || {}; shotCache.set(tv.id, c);
+    c.pending = (async () => { await adbEnsure(tv); return adbScreencap(tv); })()
+      .then((buf) => { c.buf = buf; c.at = Date.now(); return buf; })
+      .finally(() => { c.pending = null; });
+  }
+  const buf = await c.pending;
+  res.type("png").set("Cache-Control", "no-store").send(buf);
+}));
+const pkgToApp = (pkg) => { for (const a of APPS) if ([...(a.android || []), ...(a.fire || [])].includes(pkg)) return a.name; return null; };
+const prettyPkg = (pkg) => { const known = { "com.amazon.tv.launcher": "Home screen", "com.amazon.firebat": "Home screen", "com.google.android.tvlauncher": "Home screen", "com.google.android.apps.tv.launcherx": "Home screen", "com.amazon.tv.settings.v2": "Settings", "com.android.tv.settings": "Settings", "com.amazon.avod": "Prime Video", "com.amazon.firetv.youtube": "YouTube" }; if (known[pkg]) return known[pkg]; const last = String(pkg || "").split(".").filter((w) => !/^(com|tv|android|amazon|google|app|apps|firetv)$/.test(w)).pop() || pkg; return last ? last.charAt(0).toUpperCase() + last.slice(1) : ""; };
+app.get("/api/tvs/:id/now", wrap(async (req, res) => {
+  const tv = findTv(req.params.id);
+  if (!tv) return res.status(404).json({ error: "TV not found" });
+  const out = { id: tv.id, name: tv.name, type: tv.type, canShot: tv.type === "firetv" || tv.type === "googletv" };
+  try {
+    if (tv.type === "roku") {
+      const [aa, dev] = await Promise.all([rokuReq(tv, "GET", "/query/active-app", 2500), rokuReq(tv, "GET", "/query/device-info", 2500).catch(() => "")]);
+      const m = aa.match(/<app id="([^"]*)"[^>]*>([^<]*)<\/app>/);
+      const pm = xmlTag(dev, "power-mode") || "";
+      out.on = !/DisplayOff|Ready|Standby/i.test(pm);
+      if (m) { out.app = xmlUnescape(m[2]); out.appId = m[1]; out.icon = `/api/tvs/${tv.id}/icon?app=${encodeURIComponent(m[1])}`; }
+      if (!m || /^Roku$/i.test(out.app || "")) { out.app = "Home screen"; out.icon = null; }
+      try {
+        const mp = await rokuReq(tv, "GET", "/query/media-player", 2500);
+        out.state = (mp.match(/<player[^>]*state="([^"]+)"/) || [])[1] || "";
+        out.position = Math.round(parseInt(xmlTag(mp, "position") || "0", 10) / 1000) || 0;
+        out.duration = Math.round(parseInt(xmlTag(mp, "duration") || "0", 10) / 1000) || 0;
+      } catch {}
+    } else if (tv.type === "firetv" || tv.type === "googletv") {
+      const w = await adbShell(tv, "dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' | head -2").catch(() => "");
+      const pkg = (w.match(/ ([a-zA-Z0-9_.]+)\/[a-zA-Z0-9_.$]+/) || [])[1] || "";
+      out.pkg = pkg; out.app = pkgToApp(pkg) || prettyPkg(pkg) || "";
+      const pw = await adbShell(tv, "dumpsys power | grep -m1 mWakefulness=").catch(() => "");
+      out.on = !/Asleep|Dozing/i.test(pw);
+    } else if (tv.type === "vega") {
+      out.on = null; out.note = "This Fire Stick doesn't share what's playing.";
+    }
+    out.online = true;
+  } catch (e) { out.online = false; out.error = e.message; }
+  res.json(out);
+}));
+app.get("/api/tvs/:id/icon", async (req, res) => {
+  const tv = findTv(req.params.id);
+  if (!tv || tv.type !== "roku") return res.status(404).end();
+  try {
+    const r = await fetch(`http://${tv.ip}:8060/query/icon/${encodeURIComponent(String(req.query.app || ""))}`, { signal: AbortSignal.timeout(4000) });
+    if (!r.ok) return res.status(404).end();
+    res.type(r.headers.get("content-type") || "image/png").set("Cache-Control", "max-age=86400").send(Buffer.from(await r.arrayBuffer()));
+  } catch { res.status(502).end(); }
+});
+// optional room camera (an old phone running an IP-camera app, or any camera with a snapshot/MJPEG address)
+const VIEW_FILE = path.join(__dirname, "view.json");
+let viewCfg = (() => { try { return JSON.parse(fs.readFileSync(VIEW_FILE, "utf8")); } catch { return {}; } })();
+app.get("/api/view", (req, res) => res.json({ camera: viewCfg.camera || "" }));
+app.post("/api/view", (req, res) => {
+  const cam = String((req.body || {}).camera || "").trim();
+  if (cam && !/^https?:\/\/(10|127|172\.(1[6-9]|2\d|3[01])|192\.168)\.[\d.]+(:\d+)?\//.test(cam)) return res.status(400).json({ error: "Use the camera's address on your home network, like http://192.168.1.50:8080/video" });
+  viewCfg.camera = cam; fs.writeFileSync(VIEW_FILE, JSON.stringify(viewCfg, null, 2)); res.json({ ok: true });
+});
+app.get("/api/camera", (req, res) => {
+  if (!viewCfg.camera) return res.status(404).end();
+  const lib = viewCfg.camera.startsWith("https") ? https : http;
+  const r = lib.get(viewCfg.camera, { timeout: 8000, rejectUnauthorized: false }, (cr) => {
+    res.status(cr.statusCode || 502); if (cr.headers["content-type"]) res.set("Content-Type", cr.headers["content-type"]); res.set("Cache-Control", "no-store");
+    cr.pipe(res); req.on("close", () => cr.destroy());
+  });
+  r.on("error", () => { if (!res.headersSent) res.status(502).end(); }); r.on("timeout", () => r.destroy());
+});
+
 app.post("/api/tvs/:id/vega/pin", wrap(async (req, res) => {
   const tv = findTv(req.params.id);
   if (!tv || tv.type !== "vega") return res.status(400).json({ error: "Pairing is only for Fire TV (Vega)" });
@@ -1291,7 +1499,7 @@ const APP_WORDS = {
   youtube: ["youtube"], netflix: ["netflix"], youtubetv: ["youtube tv", "youtubetv"], hulu: ["hulu"], disney: ["disney", "disney plus", "disney+"],
   prime: ["prime", "prime video", "amazon prime", "amazon video"], max: ["max", "hbo", "hbo max"], peacock: ["peacock"],
   paramount: ["paramount", "paramount plus", "paramount+"], espn: ["espn"], appletv: ["apple tv", "apple"], spotify: ["spotify"],
-  plex: ["plex"], pluto: ["pluto", "pluto tv"],
+  plex: ["plex"], pluto: ["pluto", "pluto tv"], mlb: ["mlb", "mlb tv", "baseball", "the game"],
 };
 const KEY_WORDS = [
   ["poweroff", /\b(turn|switch|shut|power) (it |them )?off\b|\b(turn|shut|switch) off\b|\bpower off\b|\bsleep\b/],

@@ -18,6 +18,7 @@
     "lights.json",
     "spotify.json",
     "cert.json",
-    "alexa.json"
+    "alexa.json",
+    "view.json"
   ]
 }

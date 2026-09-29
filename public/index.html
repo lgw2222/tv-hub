@@ -144,7 +144,7 @@ details summary{cursor:pointer;color:var(--ink);font-weight:600;font-size:15px}
 /* layout areas: phone = one column, iPad = remote left, presets/voice/apps right */
 .layout{display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"pick" "pre" "remote" "voice" "sonos" "lights" "apps";column-gap:28px}
 .layout>section{min-width:0}
-.a-pick{grid-area:pick}.a-pre{grid-area:pre}.a-remote{grid-area:remote}.a-voice{grid-area:voice}.a-apps{grid-area:apps}.a-sonos{grid-area:sonos}.a-lights{grid-area:lights}
+.a-pick{grid-area:pick}.a-pre{grid-area:pre}.a-remote{grid-area:remote}.a-voice{grid-area:voice}.a-apps{grid-area:apps}.a-sonos{grid-area:sonos}.a-screen{grid-area:auto}.a-lights{grid-area:lights}
 @media (min-width:760px){
   .wrap{max-width:1080px;padding:18px 28px 34px}
   .layout{grid-template-columns:minmax(340px,420px) 1fr;grid-template-areas:"pick pick" "remote pre" "remote voice" "remote sonos" "remote lights" "remote apps";grid-template-rows:auto auto auto auto auto 1fr;align-items:start;align-content:start}
@@ -308,6 +308,36 @@ body.editing #toast{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
 .axrow .k{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;width:58px}
 .axrow input[type=checkbox]{width:22px;height:22px}
 
+
+/* what's on the TVs */
+.scr{position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.scr img.shot{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
+.scr .card{display:flex;flex-direction:column;align-items:center;gap:8px;color:#e9ebf1;text-align:center;padding:12px}
+.scr .card img{width:96px;height:72px;object-fit:contain;border-radius:8px;background:#111}
+.scr .card b{font-size:18px}
+.scr .card span{font-size:13px;color:#9aa1b3}
+.scr .tag{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.65);color:#fff;font-size:12px;font-weight:600;padding:4px 8px;border-radius:8px;max-width:calc(100% - 16px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scr .live{position:absolute;right:8px;top:8px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;font-weight:700;padding:3px 7px;border-radius:6px}
+.scr .live::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:#3fbf7f;margin-right:5px;vertical-align:1px}
+.scr.off{background:#0b0c10}
+#wSheet .panel{max-width:none;width:100%;top:0;bottom:0;border-radius:0;max-height:100%;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+@media (min-width:760px){#wSheet .panel{max-width:none;top:0;border-radius:0;max-height:100%}}
+.wall{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+@media (max-width:560px){.wall{grid-template-columns:1fr 1fr;gap:8px}.wtile .wn span{display:none}.wall .scr .card span{font-size:11px}.wall .scr .card img{width:56px;height:42px}.wall .scr .card b{font-size:14px}}
+.wtile .wn{font-weight:700;font-size:15px;margin:6px 2px 0;display:flex;justify-content:space-between;gap:8px}
+.wtile .wn span{color:var(--muted);font-weight:500;font-size:13px}
+.wcam{grid-column:1/-1}
+.wcam .scr{aspect-ratio:16/7}
+.wcam img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+
+
+#gaTvs label{justify-content:space-between}
+#gaTvs label span.st{font-size:13px;color:var(--muted);margin-left:auto}
+#gaTvs label span.st.ok{color:var(--ok)}
+.gares{margin-top:10px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.gares div{background:var(--key-lo);border-radius:10px;padding:8px 10px}
+.gares a{color:var(--gtv);font-weight:700}
+
 /* presets */
 .presets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}
 .preset{background:var(--key);border-radius:14px;padding:14px 12px;text-align:left;font-weight:700;font-size:17px;
@@ -416,6 +446,11 @@ body.editing #toast{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
     <div class="examples" id="examples"></div>
   </section>
 
+  <section class="a-screen">
+    <div class="sechead"><h2 id="scTitle">On screen</h2><div class="mini"><button id="scAll">See all TVs</button></div></div>
+    <div class="scr" id="scOne"><div class="empty">Pick a TV to see what's on it.</div></div>
+  </section>
+
   <section class="a-sonos">
     <div class="sechead"><h2>Speakers</h2><div class="mini"><button id="sSpotify" style="background:#1db954;color:#000">Spotify</button><button id="sGroupAll">Group all</button><button id="sRefresh">Refresh</button></div></div>
     <div id="spNow"></div>
@@ -428,7 +463,7 @@ body.editing #toast{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
   </section>
 
   <section class="a-apps">
-  <h2>Open an app</h2>
+  <div class="sechead"><h2>Open an app</h2><div class="mini"><button id="getApps">+ Get apps</button></div></div>
   <div class="apps" id="apps"><div class="empty">Pick a TV to see its apps.</div></div>
 
   <h2>Type into search</h2>
@@ -462,6 +497,34 @@ body.editing #toast{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
       <p class="hint">Check the speakers that should play together. Unchecked speakers go back to playing on their own.</p>
       <div class="checks" id="gChecks"></div>
       <div class="actions"><button class="btn" id="gSave">Done</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- All TVs wall -->
+<div class="sheet" id="wSheet" aria-hidden="true">
+  <div class="panel" role="dialog" aria-label="All TVs">
+    <div class="panel-head"><h3>All TVs</h3><div style="display:flex;gap:8px"><button class="btn ghost" id="wCamSet">Camera…</button><button class="btn ghost" id="wClose">Done</button></div></div>
+    <div class="wall" id="wall"></div>
+    <p class="hint" style="margin-top:14px">Fire TV and Google TV screens show a live picture (it refreshes every few seconds). Rokus and the newer Fire Stick don't allow screen pictures, so they show which app is open. Shows in apps like Netflix, YouTube TV and Hulu are copy-protected, so the TV sends a black picture for those; the app name is shown instead. Want to see every screen for real? Point an old phone running an IP-camera app at the TV wall and add it with <b>Camera…</b>. Tap a TV to control it.</p>
+  </div>
+</div>
+
+<!-- Install apps -->
+<div class="sheet" id="gaSheet" aria-hidden="true">
+  <div class="panel" role="dialog" aria-label="Get apps">
+    <div class="panel-head"><h3>Get an app on your TVs</h3><button class="btn ghost" id="gaClose">Done</button></div>
+    <div class="form">
+      <div class="srow"><input id="gaQ" placeholder="Search any app (Fox Sports, Tubi, Peacock…)" autocomplete="off" enterkeyhint="search"><button class="btn" id="gaSearch">Search</button></div>
+      <div class="chipsel" id="gaPop"></div>
+      <div id="gaRes" class="mlist"></div>
+      <div id="gaPick" hidden>
+        <label id="gaPickName"></label>
+        <div id="gaTvs" class="checks"></div>
+        <button class="btn" id="gaGo">Install on checked TVs</button>
+      </div>
+      <div id="gaOut"></div>
+      <p class="hint">The search checks what's already on each TV. When an app is on one TV, the hub knows exactly which app to get for the others. Fire TVs and the Google TV open the app's store page and press Get/Install for you (or show store search results if it's not on any TV yet). Rokus add apps another Roku already has; otherwise they show Roku search results, or use the Roku website link to add it to every Roku at once. The newer Fire Stick installs from Amazon's website with "Deliver to".</p>
     </div>
   </div>
 </div>
@@ -1686,8 +1749,8 @@ $("#aFind").onclick = () => $("#lScan").click();
 })();
 
 // ---------- editable layout ----------
-const SECTIONS = { pre: "Presets", remote: "Remote", voice: "Commands", sonos: "Speakers", lights: "Lights", apps: "Apps & search" };
-const DEFAULT_LAYOUT = { phone: { order: ["pre", "remote", "voice", "sonos", "lights", "apps"], hidden: [] }, wide: { L: ["remote"], R: ["pre", "voice", "sonos", "lights", "apps"], hidden: [] } };
+const SECTIONS = { screen: "On screen", pre: "Presets", remote: "Remote", voice: "Commands", sonos: "Speakers", lights: "Lights", apps: "Apps & search" };
+const DEFAULT_LAYOUT = { phone: { order: ["pre", "remote", "screen", "voice", "sonos", "lights", "apps"], hidden: [] }, wide: { L: ["remote"], R: ["screen", "pre", "voice", "sonos", "lights", "apps"], hidden: [] } };
 let LAYOUT;
 try { LAYOUT = JSON.parse(localStorage.getItem("layout-v1")) || null; } catch {}
 LAYOUT = Object.assign(JSON.parse(JSON.stringify(DEFAULT_LAYOUT)), LAYOUT || {});
@@ -1791,6 +1854,154 @@ $("#axList").addEventListener("change", async (e) => {
   try { await api("/api/alexa", { method: "POST", body }); toast("Saved. Say \"Alexa, discover devices\""); } catch (err) { toast(err.message, true); }
 });
 $("#openSettings").addEventListener("click", () => setTimeout(loadAlexa, 50));
+
+
+// ---------- what's on the TVs ----------
+const SCR = { timer: null, wallTimer: null, now: {}, camera: "" };
+const esc2 = (t) => escH(t);
+function fmtClock(n) { n = Math.max(0, n | 0); const h = Math.floor(n / 3600), m = Math.floor(n / 60) % 60, s2 = String(n % 60).padStart(2, "0"); return h ? `${h}:${String(m).padStart(2, "0")}:${s2}` : `${m}:${s2}`; }
+function nowText(n) {
+  if (!n) return "";
+  if (n.online === false) return "Not reachable";
+  if (n.on === false) return "Off / asleep";
+  const st = n.state === "play" ? "▶ " : n.state === "pause" ? "❚❚ " : "";
+  return `${st}${n.app || ""}${n.duration > 0 ? ` · ${fmtClock(n.position)} / ${fmtClock(n.duration)}` : ""}`;
+}
+function screenHTML(tv, n, live) {
+  if (n && n.online !== false && n.on !== false && tv.type !== "roku" && tv.type !== "vega" && live)
+    return `<img class="shot" alt="${esc2(tv.name)} screen" src="/api/tvs/${tv.id}/screen?t=${Date.now()}" data-tv="${tv.id}"><span class="live">LIVE</span><span class="tag">${esc2(nowText(n) || tv.name)}</span>`;
+  const icon = n && n.icon ? `<img src="${n.icon}" alt="">` : "";
+  const line = n ? (n.note || nowText(n) || "") : "Checking…";
+  return `<div class="card">${icon}<b>${esc2(n && n.on !== false && n.online !== false ? (n.app || tv.name) : tv.name)}</b><span>${esc2(line)}</span></div>`;
+}
+// pictures of copy-protected video come back black: detect that and say why instead of showing a black box
+document.addEventListener("load", (e) => {
+  const img = e.target; if (!(img instanceof HTMLImageElement) || !img.classList.contains("shot")) return;
+  try {
+    const c = document.createElement("canvas"); c.width = 32; c.height = 18; const g = c.getContext("2d"); g.drawImage(img, 0, 0, 32, 18);
+    const d = g.getImageData(0, 0, 32, 18).data; let sum = 0; for (let i = 0; i < d.length; i += 4) sum += d[i] + d[i + 1] + d[i + 2];
+    const box = img.closest(".scr"); const old = box.querySelector(".prot"); if (old) old.remove();
+    if (sum / (d.length / 4) / 3 < 6) { const n = SCR.now[img.dataset.tv] || {}; const p = document.createElement("div"); p.className = "card prot"; p.style.position = "relative"; box.querySelectorAll('.tag,.live').forEach((x) => x.remove()); p.innerHTML = `<b>${esc2(n.app || "Protected video")}</b><span>Playing copy-protected video, so the TV won't share a picture.</span>`; box.appendChild(p); }
+  } catch {}
+}, true);
+document.addEventListener("error", (e) => {
+  const img = e.target; if (!(img instanceof HTMLImageElement) || !img.classList.contains("shot")) return;
+  const box = img.closest(".scr"); img.remove(); if (!box.querySelector(".card")) box.insertAdjacentHTML("beforeend", `<div class="card"><b>No picture</b><span>Couldn't get a screenshot. Tap Connect for this TV in Manage TVs.</span></div>`);
+}, true);
+async function fetchNow(tv) { try { SCR.now[tv.id] = await api(`/api/tvs/${tv.id}/now`); } catch (e) { SCR.now[tv.id] = { online: false, error: e.message }; } return SCR.now[tv.id]; }
+async function refreshOne() {
+  const box = $("#scOne"); if (!box || document.hidden) return;
+  const sec = box.closest("section"); if (sec.classList.contains("hid")) return;
+  const ids = targets(); const tv = tvs.find((t) => t.id === ids[0]);
+  if (!tv) { box.innerHTML = '<div class="empty" style="color:#9aa1b3">Pick a TV to see what\'s on it.</div>'; return; }
+  $("#scTitle").textContent = `On screen: ${tv.name}${ids.length > 1 ? ` (+${ids.length - 1})` : ""}`;
+  const n = await fetchNow(tv);
+  box.classList.toggle("off", n.on === false || n.online === false);
+  const html = screenHTML(tv, n, true);
+  // swap images without flashing: load the new picture first
+  const img = box.querySelector("img.shot");
+  if (img && html.includes('class="shot"')) {
+    const nu = new Image(); nu.onload = () => { img.src = nu.src; const t = box.querySelector(".tag"); if (t) t.textContent = nowText(n) || tv.name; };
+    nu.src = `/api/tvs/${tv.id}/screen?t=${Date.now()}`;
+  } else box.innerHTML = html;
+}
+function startScreen() { clearInterval(SCR.timer); refreshOne(); SCR.timer = setInterval(refreshOne, 6000); }
+$("#scOne").onclick = () => openWall();
+$("#scAll").onclick = () => openWall();
+async function renderWall(first) {
+  const wall = $("#wall");
+  if (first) {
+    wall.innerHTML = (SCR.camera ? `<div class="wcam"><div class="scr"><img src="/api/camera?t=${Date.now()}" alt="Room camera"></div><div class="wn">Room camera</div></div>` : "") +
+      tvs.map((tv) => `<div class="wtile" data-tv="${tv.id}"><div class="scr"><div class="card"><b>${esc2(tv.name)}</b><span>Checking…</span></div></div><div class="wn">${esc2(tv.name)}<span></span></div></div>`).join("");
+  }
+  await Promise.all(tvs.map(async (tv) => {
+    const n = await fetchNow(tv);
+    const tile = wall.querySelector(`.wtile[data-tv="${CSS.escape(tv.id)}"]`); if (!tile) return;
+    const box = tile.querySelector(".scr"); box.classList.toggle("off", n.on === false || n.online === false);
+    tile.querySelector(".wn span").textContent = nowText(n);
+    const html = screenHTML(tv, n, true); const img = box.querySelector("img.shot");
+    if (img && html.includes('class="shot"')) { const nu = new Image(); nu.onload = () => { img.src = nu.src; }; nu.src = `/api/tvs/${tv.id}/screen?t=${Date.now()}`; }
+    else box.innerHTML = html;
+  }));
+}
+async function openWall() {
+  try { SCR.camera = (await api("/api/view")).camera; } catch {}
+  $("#wSheet").classList.add("open"); $("#wSheet").setAttribute("aria-hidden", "false");
+  renderWall(true); clearInterval(SCR.wallTimer); SCR.wallTimer = setInterval(() => { if (!document.hidden) renderWall(false); }, 8000);
+}
+function closeWall() { clearInterval(SCR.wallTimer); $("#wSheet").classList.remove("open"); $("#wSheet").setAttribute("aria-hidden", "true"); $("#wall").innerHTML = ""; }
+$("#wClose").onclick = closeWall;
+$("#wall").onclick = (e) => {
+  const t = e.target.closest(".wtile"); if (!t) return;
+  selected = new Set([t.dataset.tv]); if (multi) { multi = false; } commitSelection(); closeWall(); startScreen();
+  document.querySelector(".a-remote")?.scrollIntoView({ behavior: "smooth", block: "start" });
+};
+$("#wCamSet").onclick = async () => {
+  const cur = SCR.camera || "";
+  const v = prompt("Room camera address (for example an old phone with the \"IP Webcam\" app: http://192.168.1.50:8080/video). Leave empty to remove.", cur);
+  if (v === null) return;
+  try { await api("/api/view", { method: "POST", body: { camera: v } }); SCR.camera = v.trim(); renderWall(true); toast(v.trim() ? "Camera added" : "Camera removed"); } catch (e) { toast(e.message, true); }
+};
+// refresh the preview when the TV selection changes
+const _commit = commitSelection;
+commitSelection = function () { _commit(); setTimeout(refreshOne, 50); };
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshOne(); });
+setTimeout(startScreen, 1500);
+
+
+// ---------- install apps ----------
+const GA = { q: "", results: [], pick: null };
+const gaMark = (v) => (v === true ? "✓" : v === false ? "✗" : "?");
+async function gaSearch(q) {
+  q = (q ?? $("#gaQ").value).trim(); if (q.length < 2) return toast("Type at least 2 letters", true);
+  GA.q = q; $("#gaQ").value = q; $("#gaPick").hidden = true; $("#gaOut").innerHTML = "";
+  $("#gaRes").innerHTML = '<div class="empty">Checking every TV…</div>';
+  try {
+    const r = await api(`/api/appsearch?q=${encodeURIComponent(q)}`); GA.results = r.results;
+    const store = { name: q, rokuId: "", pkg: "", asin: "", rokuStore: "", tvs: tvs.map((t) => ({ id: t.id, name: t.name, type: t.type, installed: null })), store: true };
+    const list = [...r.results, store];
+    GA.results = list;
+    $("#gaRes").innerHTML = list.map((c, i) => {
+      const have = c.tvs.filter((t) => t.installed === true).length;
+      const sub = c.store ? "Not listed? Open the app stores on the TVs and search there" : `On ${have} of ${c.tvs.length} TVs · ` + c.tvs.map((t) => `${gaMark(t.installed)} ${t.name}`).join("  ");
+      return `<button class="mrow" data-i="${i}" style="grid-template-columns:minmax(0,1fr) auto"><span style="min-width:0"><div class="t">${c.store ? `Search stores for "${escH(q)}"` : escH(c.name)}</div><div class="a" style="white-space:normal">${escH(sub)}</div></span><span class="acts"><span>${c.store ? "Search" : "Pick"}</span></span></button>`;
+    }).join("");
+  } catch (e) { $("#gaRes").innerHTML = `<div class="empty">${escH(e.message)}</div>`; }
+}
+function gaChoose(i) {
+  const c = GA.results[i]; GA.pick = c;
+  $("#gaPickName").textContent = c.store ? `Search the app stores for "${GA.q}" on:` : `Install ${c.name} on:`;
+  $("#gaTvs").innerHTML = c.tvs.map((t) => `<label><input type="checkbox" value="${escH(t.id)}" ${t.installed ? "" : "checked"}> ${escH(t.name)} <span class="st ${t.installed ? "ok" : ""}">${t.installed === true ? "Installed" : t.installed === false ? "Not installed" : c.store ? "" : "Can't check"}</span></label>`).join("");
+  $("#gaGo").textContent = c.store ? "Search on checked TVs" : "Install on checked TVs";
+  $("#gaPick").hidden = false; $("#gaPick").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+$("#gaRes").onclick = (e) => { const b = e.target.closest("[data-i]"); if (b) gaChoose(Number(b.dataset.i)); };
+$("#gaSearch").onclick = () => gaSearch();
+$("#gaQ").addEventListener("keydown", (e) => { if (e.key === "Enter") gaSearch(); });
+$("#gaPop").onclick = (e) => { const b = e.target.closest("[data-q]"); if (b) gaSearch(b.dataset.q); };
+$("#getApps").onclick = async () => {
+  if (!catalog.length) await loadCatalog();
+  $("#gaPop").innerHTML = catalog.map((a) => `<button data-q="${escH(a.name)}">${escH(a.name)}</button>`).join("");
+  $("#gaRes").innerHTML = ""; $("#gaPick").hidden = true; $("#gaOut").innerHTML = "";
+  $("#gaSheet").classList.add("open"); $("#gaSheet").setAttribute("aria-hidden", "false"); setTimeout(() => $("#gaQ").focus(), 100);
+};
+$("#gaClose").onclick = () => { $("#gaSheet").classList.remove("open"); $("#gaSheet").setAttribute("aria-hidden", "true"); loadApps(); };
+$("#gaSheet").addEventListener("click", (e) => { if (e.target.id === "gaSheet") $("#gaClose").onclick(); });
+$("#gaGo").onclick = async () => {
+  const ids = [...$("#gaTvs").querySelectorAll("input:checked")].map((i) => i.value);
+  if (!ids.length) return toast("Check at least one TV", true);
+  const btn = $("#gaGo"); btn.disabled = true; btn.textContent = "Working… (watch the TVs)";
+  try {
+    const { tvs: _t, store: _s, ...app } = GA.pick;
+    const r = await api("/api/appinstall", { method: "POST", body: { app: GA.pick.store ? { name: GA.q } : app, ids, q: GA.q } });
+    const links = new Set();
+    $("#gaOut").innerHTML = `<div class="gares">${r.results.map((x) => {
+      const link = x.link && !links.has(x.link) ? (links.add(x.link), ` <a href="${escH(x.link)}" target="_blank" rel="noopener">Open website</a>`) : "";
+      return `<div><b>${escH(x.name)}:</b> ${escH(x.ok ? x.msg : x.error)}${link}</div>`;
+    }).join("")}</div>`;
+  } catch (e) { toast(e.message, true); }
+  btn.disabled = false; btn.textContent = GA.pick && GA.pick.store ? "Search on checked TVs" : "Install on checked TVs";
+};
 
 // ---------- boot ----------
 async function loadTvs() {

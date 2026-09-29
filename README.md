@@ -137,3 +137,9 @@ In layout editing: Vibrate (Android phones; iPhones on iOS 18+ get a light tap),
 
 ## Alexa
 The hub shows up to Alexa as a Philips Hue bridge on your network (works with 2nd-gen and newer Echo devices, no skill or account linking). Say "Alexa, discover devices". TVs and presets appear as plugs (on/off), lights as color lights (on/off, color, white temperature, brightness), Sonos rooms as dimmable devices (on = play, off = pause, percent = volume), and the Beam's room gets a "TV sound" switch. Manage names and which devices Alexa sees in Settings → Alexa. Requires port 80 on the PC to be free.
+
+## What's on the TVs
+The **On screen** panel shows the selected TV: a live picture for Fire TV and Google TV (screenshots over ADB, refreshed every few seconds), and the open app plus play position for Rokus. **See all TVs** shows every TV at once; tap one to control it. Copy-protected shows (Netflix, YouTube TV, Hulu…) come through black, so the app name is shown instead. Rokus and the newer Fire Stick don't allow screenshots. For a true picture of every screen, point an old phone running an IP-camera app at the TVs and add its address with **Camera…**.
+
+## Getting apps on the TVs
+Apps → **+ Get apps**: search any app (or tap a popular one), see which TVs already have it (✓ / ✗), and install it on the checked ones. When an app is on one TV the hub knows exactly which app to get for the others; if it's on none, "Search stores" opens each TV's app store search for you. Fire TVs open the Amazon Appstore page and press Get; the Google TV opens Google Play and presses Install. Rokus install through the Roku channel store (for MLB, the Roku website link adds it to every Roku on your account). The newer Fire Stick installs via Amazon's website ("Deliver to").
