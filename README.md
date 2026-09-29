@@ -122,3 +122,6 @@ No mic? Tap the "Tap here on the beat" button a few times and the lights keep th
 
 ## TV sound on Sonos
 Speaker cards with a soundbar (Beam, Arc, Ray…) have a **TV** button that switches that group to the TV's HDMI sound; the other speakers in the group keep playing along. Speakers with a line-in (Five, Port, Amp) get a **Line-in** button. Tapping **Music** and picking something switches back to music. Voice/typed: "switch the Sonos to TV".
+
+## Spotify button
+The green **Spotify** button in Speakers opens the full Spotify player (the Spotify app on iPad/phone, open.spotify.com on the PC). Spotify Connect keeps every player in sync, so you can see Up Next and skip songs that are playing on your Sonos.

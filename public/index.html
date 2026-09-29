@@ -352,7 +352,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
   </section>
 
   <section class="a-sonos">
-    <div class="sechead"><h2>Speakers</h2><div class="mini"><button id="sGroupAll">Group all</button><button id="sRefresh">Refresh</button></div></div>
+    <div class="sechead"><h2>Speakers</h2><div class="mini"><button id="sSpotify" style="background:#1db954;color:#000">Spotify</button><button id="sGroupAll">Group all</button><button id="sRefresh">Refresh</button></div></div>
     <div id="spNow"></div>
     <div id="sonos"><div class="empty">Looking for Sonos speakers…</div></div>
   </section>
@@ -1424,6 +1424,17 @@ function syncFrame(now) {
 }
 window.addEventListener("pagehide", () => { if (X.running) navigator.sendBeacon?.("/api/lights/stream/stop", new Blob([JSON.stringify({ before: X.before })], { type: "application/json" })); });
 
+
+// open the full Spotify player (app on iPad/phone, web player on PC). It remote-controls whatever Spotify is playing on Sonos.
+$("#sSpotify").onclick = () => {
+  buzz();
+  const mobile = /iPad|iPhone|Android/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (mobile) {
+    const t = setTimeout(() => { if (!document.hidden) window.open("https://open.spotify.com/", "_blank"); }, 1500);
+    document.addEventListener("visibilitychange", () => clearTimeout(t), { once: true });
+    location.href = "spotify://";
+  } else window.open("https://open.spotify.com/", "spotify");
+};
 // ---------- boot ----------
 async function loadTvs() {
   tvs = await api("/api/tvs");
