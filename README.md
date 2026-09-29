@@ -125,3 +125,12 @@ Speaker cards with a soundbar (Beam, Arc, Ray…) have a **TV** button that swit
 
 ## Spotify button
 The green **Spotify** button in Speakers opens the full Spotify player (the Spotify app on iPad/phone, open.spotify.com on the PC). Spotify Connect keeps every player in sync, so you can see Up Next and skip songs that are playing on your Sonos.
+
+## Control all lights, scenes and light shows
+Lights → **Control all**: pick all lights or just some, turn them on/off, choose a color, warm/soft/daylight white, a custom color, brightness, one-tap scenes (Movie night, Relax, Bright, Party, Chill, Night light), save your own scenes from how the lights look right now, and start the lights' built-in shows (fades, jumps, strobes) with a speed slider. Each light's ⋯ sheet has light shows too.
+
+## Rearranging the screen
+Tap the grid icon at the top (next to settings). Press and hold a panel and drag it, or use the arrows; ⇆ moves it to the other column on the iPad; the eye hides it. The phone and iPad each remember their own layout.
+
+## Button feedback
+In layout editing: Vibrate (Android phones; iPhones on iOS 18+ get a light tap), Click sound (good for the iPad, which can't vibrate), Both, or Off.

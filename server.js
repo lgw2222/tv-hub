@@ -763,9 +763,15 @@ app.get("/api/art", (req, res) => { // album art proxy so pictures also load on 
     .on("error", () => res.status(502).end()).on("timeout", function () { this.destroy(); });
 });
 app.get("/api/secure", (req, res) => res.json({ port: HTTPS_PORT, ok: !!httpsUp }));
+// body: { ids?: [...], on?, color?, brightness?, effect?: { pattern, speed } } — no ids = every light
 app.post("/api/lights/all", wrap(async (req, res) => {
-  const on = !!(req.body || {}).on;
-  const results = await Promise.allSettled(lights.map((l) => lightPower(l, on)));
+  const b = req.body || {};
+  const sel = Array.isArray(b.ids) && b.ids.length ? lights.filter((l) => b.ids.includes(l.id)) : lights;
+  const results = await Promise.allSettled(sel.map(async (l) => {
+    if (b.effect) { await lightPower(l, true); return lightEffect(l, b.effect.pattern, b.effect.speed); }
+    if (b.color || b.brightness != null) return setLight(l, { on: true, color: b.color, brightness: b.brightness });
+    return lightPower(l, b.on !== false && !!b.on);
+  }));
   res.json({ ok: true, failed: results.filter((r) => r.status === "rejected").length });
 }));
 app.post("/api/lights/:id", wrap(async (req, res) => {
@@ -774,7 +780,8 @@ app.post("/api/lights/:id", wrap(async (req, res) => {
   const b = req.body || {};
   if (b.name !== undefined) { l.name = String(b.name).trim().slice(0, 40) || l.name; saveLights(); }
   if (b.blink) { const s = await lightStatus(l); for (let i = 0; i < 3; i++) { await lightPower(l, false); await new Promise((r) => setTimeout(r, 400)); await lightPower(l, true); await new Promise((r) => setTimeout(r, 400)); } if (s.online && !s.on) await lightPower(l, false); }
-  if (b.on !== undefined || b.color || b.brightness != null) await setLight(l, b);
+  if (b.effect) { await lightPower(l, true); await lightEffect(l, b.effect.pattern, b.effect.speed); }
+  else if (b.on !== undefined || b.color || b.brightness != null) await setLight(l, b);
   res.json({ ok: true });
 }));
 app.delete("/api/lights/:id", (req, res) => { lights = lights.filter((l) => l.id !== req.params.id); saveLights(); res.json({ ok: true }); });
@@ -1144,6 +1151,16 @@ async function setLight(l, { on, color, brightness }) {
   if (brightness != null) l.brightness = Number(brightness);
   saveLights();
   return lightColor(l, ...rgb);
+}
+
+// built-in light shows (Magic Home preset patterns 0x25-0x38). speed 1-100 (100 = fastest)
+const LIGHT_EFFECTS = { fade7: 0x25, fadeRed: 0x26, fadeGreen: 0x27, fadeBlue: 0x28, fadeYellow: 0x29, fadeCyan: 0x2a, fadePurple: 0x2b, fadeWhite: 0x2c,
+  crossRG: 0x2d, crossRB: 0x2e, crossGB: 0x2f, strobe7: 0x30, strobeRed: 0x31, strobeGreen: 0x32, strobeBlue: 0x33, strobeYellow: 0x34, strobeCyan: 0x35, strobePurple: 0x36, strobeWhite: 0x37, jump7: 0x38 };
+function lightEffect(l, pattern, speed = 60) {
+  const p = typeof pattern === "number" ? pattern : LIGHT_EFFECTS[pattern];
+  if (!p) throw new Error("Unknown effect");
+  const delay = Math.max(1, Math.min(31, Math.round(31 - (Math.max(1, Math.min(100, Number(speed) || 60)) / 100) * 30)));
+  return lightSend(l.ip, [0x61, p, delay, 0x0f]);
 }
 const findLight = (id) => lights.find((l) => l.id === id);
 

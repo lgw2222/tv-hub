@@ -246,6 +246,61 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 .warnbox{background:var(--key-lo);border-radius:12px;padding:12px;font-size:14px;line-height:1.45}
 .warnbox a{color:var(--gtv);font-weight:700}
 
+
+/* control-all lights */
+.fxgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.fxgrid button{background:var(--key-lo);border-radius:10px;padding:10px 4px;font-weight:600;font-size:14px;line-height:1.15}
+.fxgrid button .sw{display:block;height:6px;border-radius:3px;margin:6px 8px 0}
+.scenes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.scene{background:var(--key-lo);border-radius:12px;padding:10px 12px;text-align:left;font-weight:700;font-size:15px;position:relative;min-width:0}
+.scene small{display:block;font-weight:500;font-size:12px;color:var(--muted);margin-top:2px}
+.scene .x{position:absolute;right:6px;top:4px;color:var(--muted);font-size:16px;padding:2px 6px}
+.chipsel{display:flex;flex-wrap:wrap;gap:6px}
+.chipsel button{background:var(--key-lo);border-radius:999px;padding:7px 12px;font-size:14px;font-weight:600;color:var(--muted);border:2px solid transparent}
+.chipsel button[aria-pressed="true"]{color:var(--ink);border-color:var(--gtv)}
+.chipsel button:disabled{opacity:.4}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.whites{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.whites button{border-radius:10px;padding:10px 4px;font-weight:700;font-size:13px;color:#222}
+
+/* custom layout */
+.layout.custom{grid-template-areas:none!important;grid-template-rows:auto 1fr!important;grid-template-columns:minmax(0,1fr)}
+.layout.custom .a-pick{grid-area:auto;grid-column:1/-1}
+.layout.custom .col{display:flex;flex-direction:column;min-width:0;align-self:stretch}
+.layout.custom #colR{display:none}
+.layout.custom .col>section{grid-area:auto}
+@media (min-width:760px){
+  .layout.custom{grid-template-columns:minmax(340px,420px) minmax(0,1fr)}
+  .layout.custom #colR{display:flex}
+  .layout.custom .a-remote{position:static}
+  .layout.custom .a-remote.solo{position:sticky;top:12px}
+  .layout.custom .col>section:first-child>h2:first-child,.layout.custom .col>section:first-child>.sechead:first-child{margin-top:4px}
+}
+.layout.custom .col>section.hid{display:none}
+body.editing .layout.custom .col{min-height:90px;border-radius:16px;outline:2px dashed var(--line);outline-offset:4px;padding-bottom:6px}
+body.editing .col>section{position:relative;max-height:112px;overflow:hidden;border-radius:14px;margin-bottom:10px;transition:transform .12s,box-shadow .12s}
+body.editing .col>section.hid{display:block;opacity:.45}
+.edit-ov{display:none}
+body.editing .edit-ov{display:flex;position:absolute;inset:0;z-index:20;background:color-mix(in srgb,var(--shell) 93%,transparent);border:2px solid var(--line);border-radius:14px;
+  align-items:center;justify-content:space-between;gap:8px;padding:0 12px;touch-action:pan-y;-webkit-user-select:none;user-select:none;cursor:grab}
+.edit-ov .nm{font-weight:700;font-size:18px;display:flex;align-items:center;gap:10px;min-width:0}
+.edit-ov .nm svg{width:22px;height:22px;flex:0 0 auto;color:var(--muted)}
+.edit-ov .bt{display:flex;gap:6px}
+.edit-ov .bt button{width:40px;height:40px;border-radius:10px;background:var(--key);display:grid;place-items:center;font-size:16px;font-weight:700}
+section.dragging{z-index:30;transform:scale(1.03);box-shadow:0 12px 30px rgba(0,0,0,.45)}
+section.dragging .edit-ov{border-color:var(--gtv);cursor:grabbing}
+#editBar{display:none}
+body.editing #editBar{display:block;position:fixed;left:0;right:0;bottom:0;z-index:35;background:var(--key);border-top:1px solid var(--line);
+  padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px))}
+#editBar .in{max-width:1080px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;justify-content:space-between}
+#editBar p{margin:0;font-size:14px;color:var(--muted);flex:1 1 260px}
+#editBar .fb{display:flex;gap:4px;background:var(--key-lo);padding:3px;border-radius:10px}
+#editBar .fb button{padding:7px 10px;border-radius:8px;font-size:13px;font-weight:600;color:var(--muted)}
+#editBar .fb button[aria-pressed="true"]{background:var(--key-hi);color:var(--ink)}
+body.editing .wrap{padding-bottom:150px}
+body.editing #toast{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
+.hapt{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;overflow:hidden}
+
 /* presets */
 .presets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}
 .preset{background:var(--key);border-radius:14px;padding:14px 12px;text-align:left;font-weight:700;font-size:17px;
@@ -281,9 +336,12 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 <div class="wrap">
   <header>
     <h1>TV Remote</h1>
+    <div style="display:flex;gap:8px"><button class="iconbtn" id="editLayout" aria-label="Edit layout" title="Edit layout">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+    </button>
     <button class="iconbtn" id="openSettings" aria-label="Manage TVs">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
-    </button>
+    </button></div>
   </header>
 
   <div class="layout">
@@ -358,8 +416,8 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
   </section>
 
   <section class="a-lights">
-    <div class="sechead"><h2>Lights</h2><div class="mini"><button id="lMusic">Music sync</button><button id="lAllOn">All on</button><button id="lAllOff">All off</button><button id="lScan">Find</button></div></div>
-    <div class="lights" id="lights"><div class="empty">Tap Find to look for your MagicLight lights.</div></div>
+    <div class="sechead"><h2>Lights</h2><div class="mini"><button id="lAll">Control all</button><button id="lMusic">Music sync</button><button id="lAllOn">On</button><button id="lAllOff">Off</button><button id="lScan" hidden>Find</button></div></div>
+    <div class="lights" id="lights"><div class="empty">Tap Control all → Find new lights to look for your MagicLight lights.</div></div>
   </section>
 
   <section class="a-apps">
@@ -400,6 +458,38 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
     </div>
   </div>
 </div>
+
+<!-- Control all lights -->
+<div class="sheet" id="aSheet" aria-hidden="true">
+  <div class="panel" role="dialog" aria-label="Control all lights">
+    <div class="panel-head"><h3>All lights</h3><button class="btn ghost" id="aClose">Done</button></div>
+    <div class="form">
+      <label>Which lights</label>
+      <div class="chipsel" id="aPick"></div>
+      <div class="row2"><button class="btn ghost" id="aOff">Turn off</button><button class="btn" id="aOn">Turn on</button></div>
+      <label>Scenes</label>
+      <div class="scenes" id="aScenes"></div>
+      <button class="btn ghost" id="aSaveScene">+ Save these lights' look as a scene</button>
+      <label>Color</label>
+      <div class="swatches" id="aSwatches"></div>
+      <div class="whites" id="aWhites"></div>
+      <label>Custom color<input type="color" id="aColor" value="#ff0040" style="height:44px;padding:2px"></label>
+      <label>Brightness <span id="aBriVal">100%</span><input type="range" id="aBri" min="5" max="100" value="100"></label>
+      <label>Light shows (built into the lights)</label>
+      <div class="fxgrid" id="aFx"></div>
+      <label>Show speed <span id="aSpdVal">60%</span><input type="range" id="aSpd" min="1" max="100" value="60"></label>
+      <div class="row2"><button class="btn ghost" id="aMusic">Music sync…</button><button class="btn ghost" id="aFind">Find new lights</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Layout editing bar -->
+<div id="editBar"><div class="in">
+  <p>Press and hold a panel, then drag it where you want it. Or use the arrows. The eye hides a panel.</p>
+  <div class="fb" id="fbPick" role="group" aria-label="Button feedback"><button data-fb="vibrate">Vibrate</button><button data-fb="sound">Click sound</button><button data-fb="both">Both</button><button data-fb="off">Off</button></div>
+  <div style="display:flex;gap:8px"><button class="btn ghost" id="layoutReset">Reset</button><button class="btn" id="layoutDone">Done</button></div>
+</div></div>
+<label class="hapt" aria-hidden="true"><input type="checkbox" switch id="haptSw" tabindex="-1"></label>
 
 <!-- Light music sync -->
 <div class="sheet" id="xSheet" aria-hidden="true">
@@ -567,7 +657,7 @@ function report(results, okMsg) {
   if (bad.length) toast(bad.map((r) => `${r.name}: ${r.error}`).join("\n"), true);
   else if (okMsg) toast(okMsg);
 }
-const buzz = () => navigator.vibrate && navigator.vibrate(8);
+const buzz = () => {}; // feedback now happens for every button press (see "button feedback")
 const targets = () => [...selected].filter((id) => tvs.some((t) => t.id === id));
 
 // ---------- picker ----------
@@ -1093,7 +1183,7 @@ async function loadLights() {
 }
 function renderLights() {
   const box = $("#lights");
-  if (!lightList.length) { box.innerHTML = '<div class="empty">Tap Find to look for your MagicLight lights.</div>'; return; }
+  if (!lightList.length) { box.innerHTML = '<div class="empty">Tap Control all → Find new lights to look for your MagicLight lights.</div>'; return; }
   box.innerHTML = lightList.map((l) => `<button class="light${l.on ? " on" : ""}${l.online ? "" : " offline"}" data-id="${escH(l.id)}" style="--lc:${l.online && (l.r || l.g || l.b) ? rgbHex(l) : "#ffd76a"}">
     <span class="bulb"></span><span style="min-width:0"><span class="ln">${escH(l.name)}</span><span class="ls">${l.online ? (l.on ? "On" : "Off") : "Offline"}</span></span>
     <span class="more" data-more="${escH(l.id)}" aria-label="Edit ${escH(l.name)}">⋯</span></button>`).join("");
@@ -1308,7 +1398,7 @@ const hexScale = (hex, k) => { const n = parseInt(hex.slice(1), 16); return "#" 
 async function openMusicSync() {
   const online = lightList.filter((l) => l.online);
   if (!X.ids.length) X.ids = online.map((l) => l.id);
-  $("#xLights").innerHTML = lightList.map((l) => `<label><input type="checkbox" value="${escH(l.id)}" ${X.ids.includes(l.id) && l.online ? "checked" : ""} ${l.online ? "" : "disabled"}> <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escH(l.name)}${l.online ? "" : " (offline)"}</span></label>`).join("") || '<div class="empty">Tap Find in Lights first.</div>';
+  $("#xLights").innerHTML = lightList.map((l) => `<label><input type="checkbox" value="${escH(l.id)}" ${X.ids.includes(l.id) && l.online ? "checked" : ""} ${l.online ? "" : "disabled"}> <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escH(l.name)}${l.online ? "" : " (offline)"}</span></label>`).join("") || '<div class="empty">Use Control all → Find new lights first.</div>';
   $("#xSwatches").innerHTML = ["#ff0040", "#ff0000", "#ff6a00", "#ffd000", "#00ff00", "#00ffff", "#0060ff", "#8000ff", "#ff00ff", "#ffffff"].map((c) => `<button style="background:${c}" data-c="${c}" aria-label="${c}"></button>`).join("");
   document.querySelectorAll("#xFx button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.fx === X.fx)));
   $("#xColorWrap").hidden = X.fx !== "pulse";
@@ -1435,6 +1525,225 @@ $("#sSpotify").onclick = () => {
     location.href = "spotify://";
   } else window.open("https://open.spotify.com/", "spotify");
 };
+
+// ---------- button feedback (vibrate on phones, optional click sound for the iPad) ----------
+const FB = { mode: "vibrate" };
+try { FB.mode = localStorage.getItem("feedback") || "vibrate"; } catch {}
+let fbCtx = null;
+function clickSound() {
+  try {
+    fbCtx = fbCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const t = fbCtx.currentTime, o = fbCtx.createOscillator(), g = fbCtx.createGain();
+    o.type = "square"; o.frequency.setValueAtTime(1800, t); o.frequency.exponentialRampToValueAtTime(600, t + 0.03);
+    g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
+    o.connect(g).connect(fbCtx.destination); o.start(t); o.stop(t + 0.05);
+  } catch {}
+}
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const TAPPABLE = "button, .light, .chip, .mrow, a.btn, [role=tab], select, input[type=checkbox], .scene, .swatches button";
+document.addEventListener("pointerdown", (e) => {
+  if (FB.mode === "off" || !e.target.closest(TAPPABLE)) return;
+  if ((FB.mode === "vibrate" || FB.mode === "both") && navigator.vibrate) navigator.vibrate(18);
+  if (FB.mode === "sound" || FB.mode === "both") clickSound();
+}, true);
+// iPhone (iOS 18+) has no vibrate API, but toggling a hidden switch gives a tiny tap. iPads have no vibration motor.
+document.addEventListener("click", (e) => {
+  if (!isIOS || !(FB.mode === "vibrate" || FB.mode === "both") || !e.target.closest(TAPPABLE) || e.target.closest(".hapt")) return;
+  try { $("#haptSw").closest("label").click(); } catch {}
+}, true);
+function renderFb() { document.querySelectorAll("#fbPick button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.fb === FB.mode))); }
+$("#fbPick").onclick = (e) => { const b = e.target.closest("[data-fb]"); if (!b) return; FB.mode = b.dataset.fb; try { localStorage.setItem("feedback", FB.mode); } catch {} renderFb(); if (FB.mode !== "off" && navigator.vibrate) navigator.vibrate(30); if (FB.mode === "sound" || FB.mode === "both") clickSound(); };
+renderFb();
+
+// ---------- control all lights ----------
+const A = { ids: null, spd: 60, bri: 100 };
+const A_SWATCH = ["#ff0000", "#ff3b00", "#ff8000", "#ffd000", "#80ff00", "#00ff40", "#00ffc0", "#00c8ff", "#0040ff", "#6a00ff", "#c000ff", "#ff00a0"];
+const A_WHITES = [["Warm white", "#ffb050"], ["Soft white", "#ffd8a0"], ["Daylight", "#ffffff"]];
+const A_FX = [["Color fade", "fade7", "linear-gradient(90deg,red,orange,yellow,lime,cyan,blue,violet)"], ["Color jump", "jump7", "repeating-linear-gradient(90deg,red 0 14%,lime 0 28%,blue 0 42%,yellow 0 56%,cyan 0 70%,violet 0 84%,white 0 100%)"],
+  ["Color strobe", "strobe7", "repeating-linear-gradient(90deg,#fff 0 8%,#222 0 16%)"], ["Red pulse", "fadeRed", "linear-gradient(90deg,#300,red,#300)"], ["Blue pulse", "fadeBlue", "linear-gradient(90deg,#003,#06f,#003)"],
+  ["Purple pulse", "fadePurple", "linear-gradient(90deg,#203,#a0f,#203)"], ["Green pulse", "fadeGreen", "linear-gradient(90deg,#030,lime,#030)"], ["Red ↔ Blue", "crossRB", "linear-gradient(90deg,red,blue)"],
+  ["Red ↔ Green", "crossRG", "linear-gradient(90deg,red,lime)"], ["Green ↔ Blue", "crossGB", "linear-gradient(90deg,lime,blue)"], ["White strobe", "strobeWhite", "repeating-linear-gradient(90deg,#fff 0 8%,#000 0 16%)"], ["Red strobe", "strobeRed", "repeating-linear-gradient(90deg,red 0 8%,#000 0 16%)"]];
+const BUILTIN_SCENES = [
+  { name: "Movie night", sub: "Dim warm", color: "#ff9a40", brightness: 15 },
+  { name: "Relax", sub: "Warm, half", color: "#ffb050", brightness: 45 },
+  { name: "Bright", sub: "Daylight, full", color: "#ffffff", brightness: 100 },
+  { name: "Party", sub: "Color jump, fast", effect: { pattern: "jump7", speed: 90 } },
+  { name: "Chill", sub: "Slow color fade", effect: { pattern: "fade7", speed: 25 } },
+  { name: "Night light", sub: "Red, very dim", color: "#ff2000", brightness: 6 },
+];
+let userScenes = [];
+try { userScenes = JSON.parse(localStorage.getItem("lightScenes") || "[]"); } catch {}
+const saveScenes = () => { try { localStorage.setItem("lightScenes", JSON.stringify(userScenes)); } catch {} };
+const aTargets = () => (A.ids && A.ids.length ? A.ids : lightList.filter((l) => l.online).map((l) => l.id));
+async function allDo(body, msg) {
+  try { const r = await api("/api/lights/all", { method: "POST", body: { ids: aTargets(), ...body } }); toast(r.failed ? `${r.failed} light(s) didn't answer` : msg, !!r.failed); setTimeout(loadLights, 600); }
+  catch (e) { toast(e.message, true); }
+}
+function renderAPick() {
+  const on = new Set(aTargets());
+  $("#aPick").innerHTML = `<button data-all="1" aria-pressed="${!A.ids}">All</button>` + lightList.map((l) => `<button data-id="${escH(l.id)}" aria-pressed="${!!A.ids && on.has(l.id)}" ${l.online ? "" : "disabled"}>${escH(l.name)}</button>`).join("");
+}
+function renderScenes() {
+  $("#aScenes").innerHTML = [...BUILTIN_SCENES.map((sc, i) => ({ ...sc, key: "b" + i })), ...userScenes.map((sc, i) => ({ ...sc, key: "u" + i, mine: true }))]
+    .map((sc) => `<button class="scene" data-scene="${sc.key}">${escH(sc.name)}<small>${escH(sc.sub || "")}</small>${sc.mine ? `<span class="x" data-del="${sc.key}" aria-label="Delete scene">×</span>` : ""}</button>`).join("");
+}
+async function applyScene(sc) {
+  if (sc.lights) { // saved scene: each light gets its own color
+    const res = await Promise.allSettled(sc.lights.map((x) => api(`/api/lights/${x.id}`, { method: "POST", body: x.on ? { on: true, color: x.color } : { on: false } })));
+    const bad = res.filter((r) => r.status === "rejected").length; toast(bad ? `${bad} light(s) didn't answer` : sc.name, !!bad); setTimeout(loadLights, 600); return;
+  }
+  if (sc.effect) return allDo({ effect: sc.effect }, sc.name);
+  return allDo({ color: sc.color, brightness: sc.brightness }, sc.name);
+}
+function openAll() {
+  renderAPick(); renderScenes();
+  $("#aSwatches").innerHTML = A_SWATCH.map((c) => `<button style="background:${c}" data-c="${c}" aria-label="${c}"></button>`).join("");
+  $("#aWhites").innerHTML = A_WHITES.map(([n, c]) => `<button style="background:${c}" data-c="${c}">${n}</button>`).join("");
+  $("#aFx").innerHTML = A_FX.map(([n, k, bg]) => `<button data-fx="${k}">${n}<span class="sw" style="background:${bg}"></span></button>`).join("");
+  $("#aBri").value = A.bri; $("#aBri").style.setProperty("--p", A.bri + "%"); $("#aBriVal").textContent = A.bri + "%";
+  $("#aSpd").value = A.spd; $("#aSpd").style.setProperty("--p", A.spd + "%"); $("#aSpdVal").textContent = A.spd + "%";
+  $("#aSheet").classList.add("open"); $("#aSheet").setAttribute("aria-hidden", "false");
+}
+const closeAll = () => { $("#aSheet").classList.remove("open"); $("#aSheet").setAttribute("aria-hidden", "true"); };
+$("#lAll").onclick = openAll;
+$("#aClose").onclick = closeAll;
+$("#aSheet").addEventListener("click", (e) => { if (e.target.id === "aSheet") closeAll(); });
+$("#aPick").onclick = (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.all) A.ids = null;
+  else { const cur = new Set(A.ids || []); cur.has(b.dataset.id) ? cur.delete(b.dataset.id) : cur.add(b.dataset.id); A.ids = cur.size ? [...cur] : null; }
+  renderAPick();
+};
+$("#aOn").onclick = () => allDo({ on: true }, "On");
+$("#aOff").onclick = () => allDo({ on: false }, "Off");
+let aColorPick = "#ff0040";
+const aSetColor = (c) => { aColorPick = c; $("#aColor").value = c.length === 7 ? c : "#ffffff"; allDo({ color: c, brightness: A.bri }, "Color set"); };
+$("#aSwatches").onclick = (e) => { const c = e.target.dataset.c; if (c) aSetColor(c); };
+$("#aWhites").onclick = (e) => { const c = e.target.closest("[data-c]")?.dataset.c; if (c) aSetColor(c); };
+$("#aColor").addEventListener("change", (e) => aSetColor(e.target.value));
+let aBriT;
+$("#aBri").addEventListener("input", (e) => {
+  A.bri = Number(e.target.value); e.target.style.setProperty("--p", A.bri + "%"); $("#aBriVal").textContent = A.bri + "%";
+  clearTimeout(aBriT); aBriT = setTimeout(() => api("/api/lights/all", { method: "POST", body: { ids: aTargets(), brightness: A.bri } }).catch((err) => toast(err.message, true)), 250);
+});
+$("#aSpd").addEventListener("input", (e) => { A.spd = Number(e.target.value); e.target.style.setProperty("--p", A.spd + "%"); $("#aSpdVal").textContent = A.spd + "%"; });
+let lastFx = null;
+$("#aSpd").addEventListener("change", () => { if (lastFx) allDo({ effect: { pattern: lastFx, speed: A.spd } }, "Speed set"); });
+$("#aFx").onclick = (e) => { const b = e.target.closest("[data-fx]"); if (!b) return; lastFx = b.dataset.fx; allDo({ effect: { pattern: lastFx, speed: A.spd } }, b.textContent.trim()); };
+$("#aScenes").onclick = (e) => {
+  const del = e.target.closest("[data-del]");
+  if (del) { e.stopPropagation(); const i = Number(del.dataset.del.slice(1)); if (confirm(`Delete scene "${userScenes[i].name}"?`)) { userScenes.splice(i, 1); saveScenes(); renderScenes(); } return; }
+  const b = e.target.closest("[data-scene]"); if (!b) return;
+  const k = b.dataset.scene; applyScene(k[0] === "b" ? BUILTIN_SCENES[Number(k.slice(1))] : userScenes[Number(k.slice(1))]);
+};
+$("#aSaveScene").onclick = async () => {
+  const name = (prompt("Name this scene (for example: Game night)") || "").trim(); if (!name) return;
+  await loadLights();
+  const ids = new Set(aTargets());
+  const ls = lightList.filter((l) => l.online && ids.has(l.id)).map((l) => ({ id: l.id, on: !!l.on, color: rgbHex(l) }));
+  if (!ls.length) return toast("No lights answered", true);
+  userScenes.push({ name, sub: `${ls.length} light${ls.length > 1 ? "s" : ""}, as they are now`, lights: ls }); saveScenes(); renderScenes(); toast(`Saved "${name}"`);
+};
+$("#aMusic").onclick = () => { closeAll(); openMusicSync(); };
+$("#aFind").onclick = () => $("#lScan").click();
+
+// individual light: built-in shows too
+(() => {
+  const wrap = document.createElement("div");
+  wrap.innerHTML = `<label>Light shows</label><div class="fxgrid" id="lFx">${A_FX.slice(0, 6).map(([n, k, bg]) => `<button data-fx="${k}">${n}<span class="sw" style="background:${bg}"></span></button>`).join("")}</div>`;
+  const bri = $("#lBri").closest("label"); bri.after(wrap);
+  $("#lFx").onclick = (e) => { const b = e.target.closest("[data-fx]"); if (b) lightDo({ effect: { pattern: b.dataset.fx, speed: 60 } }, b.textContent.trim()); };
+})();
+
+// ---------- editable layout ----------
+const SECTIONS = { pre: "Presets", remote: "Remote", voice: "Commands", sonos: "Speakers", lights: "Lights", apps: "Apps & search" };
+const DEFAULT_LAYOUT = { phone: { order: ["pre", "remote", "voice", "sonos", "lights", "apps"], hidden: [] }, wide: { L: ["remote"], R: ["pre", "voice", "sonos", "lights", "apps"], hidden: [] } };
+let LAYOUT;
+try { LAYOUT = JSON.parse(localStorage.getItem("layout-v1")) || null; } catch {}
+LAYOUT = Object.assign(JSON.parse(JSON.stringify(DEFAULT_LAYOUT)), LAYOUT || {});
+const saveLayout = () => { try { localStorage.setItem("layout-v1", JSON.stringify(LAYOUT)); } catch {} };
+const wideMQ = window.matchMedia("(min-width:760px)");
+const sec = (k) => document.querySelector(`.layout .a-${k}`);
+(function setupLayout() {
+  const lay = $(".layout"); lay.classList.add("custom");
+  for (const id of ["colL", "colR"]) { const c = document.createElement("div"); c.className = "col"; c.id = id; lay.appendChild(c); }
+  for (const k of Object.keys(SECTIONS)) {
+    const s = sec(k); s.dataset.sec = k;
+    const ov = document.createElement("div"); ov.className = "edit-ov";
+    ov.innerHTML = `<span class="nm"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>${SECTIONS[k]}</span>
+      <span class="bt"><button data-mv="-1" aria-label="Move up">↑</button><button data-mv="1" aria-label="Move down">↓</button><button data-side aria-label="Other column" class="sidebtn">⇆</button><button data-hide aria-label="Hide or show">👁</button></span>`;
+    s.appendChild(ov);
+  }
+})();
+function applyLayout() {
+  const wide = wideMQ.matches, cfg = wide ? LAYOUT.wide : LAYOUT.phone;
+  const known = Object.keys(SECTIONS);
+  const fill = (list) => list.filter((k) => known.includes(k));
+  let L = wide ? fill(cfg.L) : fill(cfg.order), R = wide ? fill(cfg.R) : [];
+  for (const k of known) if (!L.includes(k) && !R.includes(k)) (wide ? R : L).push(k); // anything new goes at the end
+  L.forEach((k) => $("#colL").appendChild(sec(k))); R.forEach((k) => $("#colR").appendChild(sec(k)));
+  for (const k of known) sec(k).classList.toggle("hid", cfg.hidden.includes(k));
+  const rem = sec("remote"); rem.classList.toggle("solo", rem.parentElement.children.length === 1);
+  document.querySelectorAll(".sidebtn").forEach((b) => (b.style.display = wide ? "" : "none"));
+}
+function readLayout() {
+  const L = [...$("#colL").children].map((s) => s.dataset.sec).filter(Boolean), R = [...$("#colR").children].map((s) => s.dataset.sec).filter(Boolean);
+  if (wideMQ.matches) { LAYOUT.wide.L = L; LAYOUT.wide.R = R; } else LAYOUT.phone.order = L.concat(R);
+  saveLayout(); applyLayout();
+}
+wideMQ.addEventListener ? wideMQ.addEventListener("change", applyLayout) : wideMQ.addListener(applyLayout);
+applyLayout();
+function setEditing(on) {
+  document.body.classList.toggle("editing", on);
+  if (on) { closeSheetsForEdit(); toast("Editing layout"); } else toast("Layout saved");
+}
+function closeSheetsForEdit() { document.querySelectorAll(".sheet.open").forEach((s) => s.classList.remove("open")); }
+$("#editLayout").onclick = () => setEditing(!document.body.classList.contains("editing"));
+$("#layoutDone").onclick = () => setEditing(false);
+$("#layoutReset").onclick = () => { if (!confirm("Put every panel back where it started?")) return; LAYOUT = JSON.parse(JSON.stringify(DEFAULT_LAYOUT)); saveLayout(); applyLayout(); };
+$(".layout").addEventListener("click", (e) => {
+  if (!document.body.classList.contains("editing")) return;
+  const s = e.target.closest("section[data-sec]"); if (!s) return;
+  const b = e.target.closest(".edit-ov button"); if (!b) return;
+  e.stopPropagation();
+  const k = s.dataset.sec, cfg = wideMQ.matches ? LAYOUT.wide : LAYOUT.phone;
+  if (b.dataset.hide !== undefined) { const i = cfg.hidden.indexOf(k); i >= 0 ? cfg.hidden.splice(i, 1) : cfg.hidden.push(k); saveLayout(); applyLayout(); return; }
+  if (b.dataset.side !== undefined) { (s.parentElement.id === "colL" ? $("#colR") : $("#colL")).appendChild(s); readLayout(); return; }
+  const mv = Number(b.dataset.mv);
+  if (mv < 0 && s.previousElementSibling) s.parentElement.insertBefore(s, s.previousElementSibling);
+  else if (mv > 0 && s.nextElementSibling) s.parentElement.insertBefore(s.nextElementSibling, s);
+  readLayout();
+}, true);
+// press-and-hold, then drag
+(() => {
+  let drag = null, hold = null, start = null, scrollT = null;
+  const cancelHold = () => { clearTimeout(hold); hold = null; };
+  document.addEventListener("pointerdown", (e) => {
+    if (!document.body.classList.contains("editing")) return;
+    const ov = e.target.closest(".edit-ov"); if (!ov || e.target.closest(".edit-ov button")) return;
+    const s = ov.closest("section"); start = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    hold = setTimeout(() => {
+      drag = s; s.classList.add("dragging"); if (navigator.vibrate && FB.mode !== "off") navigator.vibrate(35);
+      try { ov.setPointerCapture(start.id); } catch {}
+    }, e.pointerType === "mouse" ? 120 : 300);
+  });
+  document.addEventListener("pointermove", (e) => {
+    if (hold && !drag && start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 10) cancelHold();
+    if (!drag) return;
+    e.preventDefault();
+    const x = e.clientX, y = e.clientY;
+    clearInterval(scrollT); scrollT = null;
+    if (y < 70) scrollT = setInterval(() => window.scrollBy(0, -14), 16); else if (y > innerHeight - 70) scrollT = setInterval(() => window.scrollBy(0, 14), 16);
+    drag.style.visibility = "hidden"; const el = document.elementFromPoint(x, y); drag.style.visibility = "";
+    const over = el && el.closest(".col>section"), col = el && el.closest(".col");
+    if (over && over !== drag) { const r = over.getBoundingClientRect(); over.parentElement.insertBefore(drag, y < r.top + r.height / 2 ? over : over.nextSibling); }
+    else if (!over && col && col !== drag.parentElement) col.appendChild(drag);
+  }, { passive: false });
+  document.addEventListener("touchmove", (e) => { if (drag) e.preventDefault(); }, { passive: false });
+  const end = () => { cancelHold(); clearInterval(scrollT); scrollT = null; if (!drag) return; drag.classList.remove("dragging"); drag = null; readLayout(); };
+  document.addEventListener("pointerup", end); document.addEventListener("pointercancel", end);
+})();
+
 // ---------- boot ----------
 async function loadTvs() {
   tvs = await api("/api/tvs");
