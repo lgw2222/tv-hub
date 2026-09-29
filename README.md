@@ -134,3 +134,6 @@ Tap the grid icon at the top (next to settings). Press and hold a panel and drag
 
 ## Button feedback
 In layout editing: Vibrate (Android phones; iPhones on iOS 18+ get a light tap), Click sound (good for the iPad, which can't vibrate), Both, or Off.
+
+## Alexa
+The hub shows up to Alexa as a Philips Hue bridge on your network (works with 2nd-gen and newer Echo devices, no skill or account linking). Say "Alexa, discover devices". TVs and presets appear as plugs (on/off), lights as color lights (on/off, color, white temperature, brightness), Sonos rooms as dimmable devices (on = play, off = pause, percent = volume), and the Beam's room gets a "TV sound" switch. Manage names and which devices Alexa sees in Settings → Alexa. Requires port 80 on the PC to be free.

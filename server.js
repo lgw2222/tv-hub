@@ -117,12 +117,12 @@ async function adbShell(tv, ...cmd) {
 // Newer Fire Sticks (Vega OS) have no ADB. They accept the same local API the Fire TV phone app uses:
 // DIAL wake on :8009, then JSON over :8080 with a one-time PIN pairing that returns a client token.
 const VEGA_KEY = "0987654321";
-function vegaRaw(tv, method, pathQ, body, scheme, timeout = 5000) {
+function vegaRaw(tv, method, pathQ, body, scheme, timeout = 5000, noToken = false) {
   return new Promise((resolve, reject) => {
     const lib = scheme === "http" ? http : https;
     const data = body == null ? null : JSON.stringify(body);
     const headers = { "X-Api-Key": VEGA_KEY, "Content-Type": "application/json; charset=utf-8", "User-Agent": "okhttp/4.10.0" };
-    if (tv.vegaToken) headers["X-Client-Token"] = tv.vegaToken;
+    if (tv.vegaToken && !noToken) headers["X-Client-Token"] = tv.vegaToken;
     if (data) headers["Content-Length"] = Buffer.byteLength(data);
     const req = lib.request({ host: tv.ip, port: 8080, path: pathQ, method, headers, timeout, rejectUnauthorized: false }, (res) => {
       let out = ""; res.on("data", (c) => (out += c));
@@ -140,21 +140,30 @@ function vegaWake(tv) {
     req.on("timeout", () => req.destroy()); req.on("error", () => resolve(0)); req.end();
   });
 }
-async function vegaReq(tv, method, pathQ, body) {
+async function vegaReq(tv, method, pathQ, body, noToken = false) {
   const order = tv.vegaScheme ? [tv.vegaScheme, tv.vegaScheme === "https" ? "http" : "https"] : ["https", "http"];
-  let lastErr;
-  for (let attempt = 0; attempt < 2; attempt++) {
+  let lastErr, authFail = 0;
+  for (let attempt = 0; attempt < 3; attempt++) {
     for (const scheme of order) {
       try {
-        const r = await vegaRaw(tv, method, pathQ, body, scheme);
-        if (r.status === 401 || r.status === 403) throw Object.assign(new Error(`${tv.name} needs to be paired again. Open Manage TVs and tap Pair.`), { fatal: true });
+        const r = await vegaRaw(tv, method, pathQ, body, scheme, 5000, noToken);
+        if (r.status === 401 || r.status === 403) {
+          // Right after the stick wakes, its remote service can reject a valid token for a moment. Wake it and try again before blaming the pairing.
+          authFail++; lastErr = new Error("not accepted");
+          if (authFail >= 2) {
+            tv.vegaAuthFails = (tv.vegaAuthFails || 0) + 1; saveTvs(tvs);
+            throw Object.assign(new Error(/FireTV\/app\//.test(pathQ) ? `${tv.name} won't open that app from the hub.` : `${tv.name} didn't accept the hub's saved pairing. If it happens again, tap Pair in Manage TVs (the old pairing is kept until the new PIN works).`), { fatal: true });
+          }
+          break;
+        }
         if (r.status >= 400) throw Object.assign(new Error(`${tv.name} returned ${r.status}${r.body ? ": " + r.body.slice(0, 120) : ""}`), { fatal: true });
-        if (tv.vegaScheme !== scheme) { tv.vegaScheme = scheme; saveTvs(tvs); }
+        if (tv.vegaScheme !== scheme || tv.vegaAuthFails) { tv.vegaScheme = scheme; delete tv.vegaAuthFails; saveTvs(tvs); }
         return r.body;
       } catch (e) { if (e.fatal) throw e; lastErr = e; }
     }
-    await vegaWake(tv); // remote service may be asleep; wake it and retry once
-    await new Promise((r) => setTimeout(r, 1200));
+    if (lastErr && lastErr.message === "not accepted") { await new Promise((r) => setTimeout(r, 1500)); lastErr = null; continue; } // it answered, just not ready: wait, don't re-wake
+    await vegaWake(tv); // remote service may be asleep; wake it and retry
+    await new Promise((r) => setTimeout(r, attempt ? 2000 : 1200));
   }
   throw new Error(`Can't reach ${tv.name} at ${tv.ip}. Make sure it's on and on the same Wi-Fi. (${lastErr ? lastErr.message : "no answer"})`);
 }
@@ -526,20 +535,20 @@ app.get("/api/apps", wrap(async (req, res) => {
 app.post("/api/tvs/:id/vega/pin", wrap(async (req, res) => {
   const tv = findTv(req.params.id);
   if (!tv || tv.type !== "vega") return res.status(400).json({ error: "Pairing is only for Fire TV (Vega)" });
-  delete tv.vegaToken;
+  // keep the current pairing until the new PIN is confirmed, so cancelling doesn't un-pair the TV
   await vegaWake(tv);
   await new Promise((r) => setTimeout(r, 800));
-  await vegaReq(tv, "POST", "/v1/FireTV/pin/display", { friendlyName: "TV Remote Hub" });
+  await vegaReq(tv, "POST", "/v1/FireTV/pin/display", { friendlyName: "TV Remote Hub" }, true);
   res.json({ ok: true });
 }));
 app.post("/api/tvs/:id/vega/verify", wrap(async (req, res) => {
   const tv = findTv(req.params.id);
   const pin = String((req.body || {}).pin || "").trim();
   if (!tv || tv.type !== "vega" || !pin) return res.status(400).json({ error: "Enter the PIN shown on the TV." });
-  const body = await vegaReq(tv, "POST", "/v1/FireTV/pin/verify", { pin });
+  const body = await vegaReq(tv, "POST", "/v1/FireTV/pin/verify", { pin }, true);
   let token; try { token = JSON.parse(body).description; } catch {}
   if (!token) throw new Error("The TV didn't accept that PIN. Tap Pair to get a new one.");
-  tv.vegaToken = token; saveTvs(tvs);
+  tv.vegaToken = token; tv.vegaPairedAt = new Date().toISOString(); delete tv.vegaAuthFails; saveTvs(tvs);
   res.json({ ok: true });
 }));
 
@@ -1449,6 +1458,152 @@ function startHttps() {
       .listen(HTTPS_PORT, "0.0.0.0", () => { httpsUp = true; ips.filter((ip) => ip !== "127.0.0.1").forEach((ip) => console.log(`  Secure (for the iPad mic): https://${ip}:${HTTPS_PORT}`)); });
   } catch (e) { console.log("  (Secure page not started: " + e.message + ")"); }
 }
+// ---------- Alexa: the hub pretends to be a Philips Hue bridge so Echo speakers find and control things locally ----------
+const ALEXA_FILE = path.join(__dirname, "alexa.json");
+let alexaCfg = (() => { try { return JSON.parse(fs.readFileSync(ALEXA_FILE, "utf8")); } catch { return {}; } })();
+alexaCfg.ids = alexaCfg.ids || {}; alexaCfg.names = alexaCfg.names || {}; alexaCfg.off = alexaCfg.off || []; alexaCfg.nextId = alexaCfg.nextId || 1;
+const saveAlexa = () => fs.writeFileSync(ALEXA_FILE, JSON.stringify(alexaCfg, null, 2));
+const ALEXA_PORT = Number(process.env.ALEXA_PORT) || 80;
+let alexaStatus = { http: false, ssdp: false, error: "" };
+const alexaState = new Map(); // key -> { on, bri, hue, sat, ct, xy, colormode }
+const cleanName = (n) => String(n || "").replace(/"/g, " inch").replace(/[^\w\s'&+-]/g, " ").replace(/\s+/g, " ").trim();
+function alexaDevices() {
+  const out = [];
+  const add = (key, def, kind, extra = {}) => out.push({ key, name: alexaCfg.names[key] || cleanName(def), defName: cleanName(def), kind, enabled: !alexaCfg.off.includes(key), ...extra });
+  for (const tv of tvs) add("tv:" + tv.id, tv.name, "tv", { tvId: tv.id });
+  for (const p of presets) add("preset:" + p.id, p.name, "preset", { presetId: p.id });
+  for (const l of lights) add("light:" + l.id, l.name, "light", { lightId: l.id });
+  if (lights.length) add("lights:all", "All lights", "lightsAll");
+  for (const sp of sonosLastRooms) {
+    add("sonos:" + sp.uuid, `${sp.name} speakers`, "sonos", { uuid: sp.uuid });
+    if (sp.hasTv) add("sonostv:" + sp.uuid, `${sp.name} TV sound`, "sonosTv", { uuid: sp.uuid });
+  }
+  for (const d of out) if (!alexaCfg.ids[d.key]) { alexaCfg.ids[d.key] = String(alexaCfg.nextId++); saveAlexa(); }
+  out.forEach((d) => (d.id = alexaCfg.ids[d.key]));
+  return out;
+}
+let sonosLastRooms = [];
+const refreshSonosRooms = async () => { try { const gs = await sonosState(); sonosLastRooms = gs.flatMap((g) => g.members.map((m) => ({ uuid: m.uuid, name: m.name, hasTv: m.hasTv, volume: m.volume, playing: /PLAYING/.test(g.state || "") }))); } catch {} };
+setTimeout(refreshSonosRooms, 4000); setInterval(refreshSonosRooms, 5 * 60 * 1000);
+
+const macHex = (() => { const i = Object.values(os.networkInterfaces()).flat().find((x) => x && !x.internal && x.mac && x.mac !== "00:00:00:00:00:00"); return (i ? i.mac : "02:00:00:aa:bb:cc").replace(/:/g, ""); })();
+function alexaIp() {
+  const ifs = os.networkInterfaces(); const list = [];
+  for (const [name, arr] of Object.entries(ifs)) for (const i of arr || []) if (i.family === "IPv4" && !i.internal) list.push({ name, ip: i.address });
+  list.sort((a, b) => (/wi-?fi|wlan|wireless/i.test(a.name) - /wi-?fi|wlan|wireless/i.test(b.name)) || (b.ip.startsWith("192.168.1.") - a.ip.startsWith("192.168.1.")));
+  return (list[0] || { ip: "127.0.0.1" }).ip;
+}
+function hueLight(d) {
+  const st = alexaState.get(d.key) || { on: false, bri: 254 };
+  const color = d.kind === "light" || d.kind === "lightsAll";
+  const dim = color || d.kind === "sonos";
+  const uid = `00:17:88:01:00:${("000000" + Number(d.id).toString(16)).slice(-6).match(/../g).join(":")}-0b`;
+  const base = { state: { on: !!st.on, bri: Math.max(1, Math.min(254, st.bri || 254)), alert: "none", mode: "homeautomation", reachable: true },
+    name: d.name, uniqueid: uid, manufacturername: "Philips", swversion: "1.46.13_r26312" };
+  if (color) return { ...base, state: { ...base.state, hue: st.hue || 0, sat: st.sat || 0, effect: "none", xy: st.xy || [0.3227, 0.329], ct: st.ct || 366, colormode: st.colormode || "hs" },
+    type: "Extended color light", modelid: "LCT015", productname: "Hue color lamp" };
+  if (dim) return { ...base, type: "Dimmable light", modelid: "LWB010", productname: "Hue white lamp" };
+  const { bri, ...onOnly } = base.state;
+  return { ...base, state: onOnly, type: "On/Off plug-in unit", modelid: "LOM001", productname: "Hue Smart plug" };
+}
+// color helpers for Alexa's requests
+function hsToHex(h, s) { return hsv((h / 65535) * 360, s / 254, 1); }
+function xyToHex([x, y]) {
+  const z = 1 - x - y, Y = 1, X = (Y / y) * x, Z = (Y / y) * z;
+  let r = X * 1.656492 - Y * 0.354851 - Z * 0.255038, g = -X * 0.707196 + Y * 1.655397 + Z * 0.036152, b = X * 0.051713 - Y * 0.121364 + Z * 1.01153;
+  const gam = (v) => (v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055);
+  [r, g, b] = [r, g, b].map((v) => Math.max(0, gam(v))); const m = Math.max(r, g, b, 1e-6);
+  return "#" + [r, g, b].map((v) => Math.round((v / m) * 255).toString(16).padStart(2, "0")).join("");
+}
+function ctToHex(mired) {
+  const t = 1e6 / mired / 100; let r, g, b;
+  if (t <= 66) { r = 255; g = 99.47 * Math.log(t) - 161.12; b = t <= 19 ? 0 : 138.52 * Math.log(t - 10) - 305.04; }
+  else { r = 329.7 * Math.pow(t - 60, -0.1332); g = 288.12 * Math.pow(t - 60, -0.0755); b = 255; }
+  return "#" + [r, g, b].map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join("");
+}
+function hsv(h, s, v) { h = (((h % 360) + 360) % 360) / 60; const c = v * s, x = c * (1 - Math.abs((h % 2) - 1)), m = v - c; const [r, g, b] = h < 1 ? [c, x, 0] : h < 2 ? [x, c, 0] : h < 3 ? [0, c, x] : h < 4 ? [0, x, c] : h < 5 ? [x, 0, c] : [c, 0, x]; return "#" + [r, g, b].map((n) => Math.round((n + m) * 255).toString(16).padStart(2, "0")).join(""); }
+
+async function alexaAct(d, body) {
+  const st = { ...(alexaState.get(d.key) || { on: false, bri: 254 }) };
+  if (body.on !== undefined) st.on = !!body.on;
+  if (body.bri !== undefined) { st.bri = body.bri; st.on = true; }
+  let color = null;
+  if (body.hue !== undefined || body.sat !== undefined) { st.hue = body.hue ?? st.hue ?? 0; st.sat = body.sat ?? st.sat ?? 254; st.colormode = "hs"; color = hsToHex(st.hue, st.sat); st.on = true; }
+  if (body.xy) { st.xy = body.xy; st.colormode = "xy"; color = xyToHex(body.xy); st.on = true; }
+  if (body.ct) { st.ct = body.ct; st.colormode = "ct"; color = ctToHex(body.ct); st.on = true; }
+  alexaState.set(d.key, st);
+  const pct = Math.max(1, Math.round((st.bri / 254) * 100));
+  const run = async () => {
+    if (d.kind === "tv") { const tv = findTv(d.tvId); if (tv) await sendKey(tv, st.on ? "poweron" : "poweroff"); }
+    else if (d.kind === "preset") { const p = presets.find((x) => x.id === d.presetId); if (p && st.on) await runSteps(p.steps); setTimeout(() => alexaState.set(d.key, { ...st, on: false }), 5000); }
+    else if (d.kind === "light" || d.kind === "lightsAll") {
+      const sel = d.kind === "light" ? [findLight(d.lightId)].filter(Boolean) : lights;
+      await Promise.allSettled(sel.map((l) => (!st.on ? lightPower(l, false) : color || body.bri !== undefined ? setLight(l, { on: true, color: color || undefined, brightness: body.bri !== undefined ? pct : undefined }) : lightPower(l, true))));
+    } else if (d.kind === "sonos") {
+      const g = await coordFor(d.uuid);
+      if (body.bri !== undefined) await sonosGroupVolume(g.coordinator.ip, pct);
+      if (body.on !== undefined) await sonosSoap(g.coordinator.ip, "AVTransport", st.on ? "Play" : "Pause", st.on ? { InstanceID: 0, Speed: 1 } : { InstanceID: 0 }).catch(() => {});
+    } else if (d.kind === "sonosTv") {
+      if (st.on) await sonosInput(d.uuid, "tv"); else { const g = await coordFor(d.uuid); await sonosSoap(g.coordinator.ip, "AVTransport", "Pause", { InstanceID: 0 }).catch(() => {}); }
+    }
+  };
+  run().catch((e) => console.log("Alexa action failed:", d.name, e.message)); // answer Alexa right away; the work happens in the background
+  return st;
+}
+function startAlexa() {
+  const hue = express();
+  hue.use(express.text({ type: "*/*" }));
+  const bodyOf = (req) => { try { return JSON.parse(req.body || "{}"); } catch { return {}; } };
+  const enabled = () => alexaDevices().filter((d) => d.enabled);
+  const lightsMap = () => Object.fromEntries(enabled().map((d) => [d.id, hueLight(d)]));
+  hue.get("/description.xml", (req, res) => {
+    const ip = alexaIp();
+    res.type("text/xml").send(`<?xml version="1.0" encoding="UTF-8" ?><root xmlns="urn:schemas-upnp-org:device-1-0"><specVersion><major>1</major><minor>0</minor></specVersion><URLBase>http://${ip}:${ALEXA_PORT}/</URLBase><device><deviceType>urn:schemas-upnp-org:device:Basic:1</deviceType><friendlyName>TV Remote Hub (${ip})</friendlyName><manufacturer>Royal Philips Electronics</manufacturer><manufacturerURL>http://www.philips.com</manufacturerURL><modelDescription>Philips hue Personal Wireless Lighting</modelDescription><modelName>Philips hue bridge 2012</modelName><modelNumber>929000226503</modelNumber><modelURL>http://www.meethue.com</modelURL><serialNumber>${macHex}</serialNumber><UDN>uuid:2f402f80-da50-11e1-9b23-${macHex}</UDN><presentationURL>index.html</presentationURL></device></root>`);
+  });
+  hue.post("/api", (req, res) => res.json([{ success: { username: "tvremotehub" + macHex.slice(-6) } }]));
+  hue.get("/api/:user", (req, res) => res.json({ lights: lightsMap(), groups: {}, scenes: {}, schedules: {}, sensors: {}, rules: {}, config: { name: "TV Remote Hub", mac: macHex.match(/../g).join(":"), bridgeid: macHex.slice(0, 6).toUpperCase() + "FFFE" + macHex.slice(6).toUpperCase(), modelid: "BSB002", apiversion: "1.17.0", swversion: "1711151408", ipaddress: alexaIp() } }));
+  hue.get("/api/:user/config", (req, res) => res.json({ name: "TV Remote Hub", mac: macHex.match(/../g).join(":"), bridgeid: macHex.slice(0, 6).toUpperCase() + "FFFE" + macHex.slice(6).toUpperCase(), modelid: "BSB002", apiversion: "1.17.0", swversion: "1711151408", ipaddress: alexaIp() }));
+  hue.get("/api/:user/lights", (req, res) => res.json(lightsMap()));
+  hue.get("/api/:user/groups", (req, res) => res.json({}));
+  hue.get("/api/:user/lights/:id", (req, res) => { const d = enabled().find((x) => x.id === req.params.id); d ? res.json(hueLight(d)) : res.status(404).json([{ error: { type: 3, address: `/lights/${req.params.id}`, description: "resource not available" } }]); });
+  hue.put("/api/:user/lights/:id/state", async (req, res) => {
+    const d = enabled().find((x) => x.id === req.params.id);
+    if (!d) return res.status(404).json([{ error: { type: 3, address: `/lights/${req.params.id}`, description: "resource not available" } }]);
+    const body = bodyOf(req);
+    await alexaAct(d, body);
+    res.json(Object.entries(body).map(([k, v]) => ({ success: { [`/lights/${d.id}/state/${k}`]: v } })));
+  });
+  hue.listen(ALEXA_PORT, "0.0.0.0", () => { alexaStatus.http = true; console.log(`  Alexa bridge ready (say "Alexa, discover devices")`); })
+    .on("error", (e) => { alexaStatus.error = e.code === "EADDRINUSE" ? `Port ${ALEXA_PORT} is already used by another program on this PC.` : e.code === "EACCES" ? `Not allowed to use port ${ALEXA_PORT}.` : e.message; console.log("  (Alexa bridge off: " + alexaStatus.error + ")"); });
+  // answer Echo's "is there a Hue bridge here?" search
+  const ssdp = dgram.createSocket({ type: "udp4", reuseAddr: true });
+  ssdp.on("message", (msg, r) => {
+    const t = msg.toString();
+    if (!/^M-SEARCH/i.test(t) || !/(ssdp:all|upnp:rootdevice|device:basic:1)/i.test(t)) return;
+    const ip = alexaIp();
+    for (const st of ["upnp:rootdevice", `uuid:2f402f80-da50-11e1-9b23-${macHex}`, "urn:schemas-upnp-org:device:basic:1"]) {
+      const reply = `HTTP/1.1 200 OK\r\nHOST: 239.255.255.250:1900\r\nEXT:\r\nCACHE-CONTROL: max-age=100\r\nLOCATION: http://${ip}:${ALEXA_PORT}/description.xml\r\nSERVER: Linux/3.14.0 UPnP/1.0 IpBridge/1.17.0\r\nhue-bridgeid: ${macHex.slice(0, 6).toUpperCase()}FFFE${macHex.slice(6).toUpperCase()}\r\nST: ${st}\r\nUSN: uuid:2f402f80-da50-11e1-9b23-${macHex}${st.startsWith("uuid") ? "" : "::" + st}\r\n\r\n`;
+      ssdp.send(reply, r.port, r.address);
+    }
+  });
+  ssdp.on("error", (e) => { alexaStatus.ssdp = false; console.log("  (Alexa discovery off: " + e.message + ")"); });
+  ssdp.bind(1900, () => { try { for (const i of Object.values(os.networkInterfaces()).flat()) if (i && i.family === "IPv4" && !i.internal) ssdp.addMembership("239.255.255.250", i.address); alexaStatus.ssdp = true; } catch (e) { try { ssdp.addMembership("239.255.255.250"); alexaStatus.ssdp = true; } catch {} } });
+}
+startAlexa();
+// keep light states Alexa sees roughly in sync with reality
+setInterval(async () => {
+  for (const l of lights) { const s = await lightStatus(l); if (!s.online) continue; const k = "light:" + l.id; const st = alexaState.get(k) || { bri: 254 }; alexaState.set(k, { ...st, on: s.on }); }
+  for (const sp of sonosLastRooms) { const k = "sonos:" + sp.uuid; const st = alexaState.get(k) || {}; alexaState.set(k, { ...st, on: sp.playing, bri: Math.max(1, Math.round(((sp.volume || 0) / 100) * 254)) }); }
+}, 60000);
+app.get("/api/alexa", async (req, res) => { if (!sonosLastRooms.length) await refreshSonosRooms(); res.json({ status: { ...alexaStatus, port: ALEXA_PORT, ip: alexaIp() }, devices: alexaDevices() }); });
+app.post("/api/alexa", (req, res) => {
+  const { key, name, enabled } = req.body || {};
+  if (!key) return res.status(400).json({ error: "Missing device" });
+  if (name !== undefined) { const n = cleanName(name); if (n) alexaCfg.names[key] = n; else delete alexaCfg.names[key]; }
+  if (enabled !== undefined) { alexaCfg.off = alexaCfg.off.filter((k) => k !== key); if (!enabled) alexaCfg.off.push(key); }
+  saveAlexa(); res.json({ ok: true });
+});
+
 startHttps();
 
 app.listen(PORT, "0.0.0.0", async () => {

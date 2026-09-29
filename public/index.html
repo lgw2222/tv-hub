@@ -301,6 +301,13 @@ body.editing .wrap{padding-bottom:150px}
 body.editing #toast{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
 .hapt{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;overflow:hidden}
 
+
+.axlist{display:flex;flex-direction:column;gap:6px}
+.axrow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center}
+.axrow input[type=text]{min-width:0}
+.axrow .k{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;width:58px}
+.axrow input[type=checkbox]{width:22px;height:22px}
+
 /* presets */
 .presets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}
 .preset{background:var(--key);border-radius:14px;padding:14px 12px;text-align:left;font-weight:700;font-size:17px;
@@ -595,6 +602,14 @@ body.editing #toast{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
       <label>Harmony Hub IP<input id="hIp" placeholder="192.168.1.23" inputmode="decimal"></label>
       <div class="actions"><button class="btn" id="hSave">Connect</button></div>
       <p class="hint" id="hStatus" style="margin:0"></p>
+    </div>
+
+    <h2>Alexa</h2>
+    <div class="form">
+      <p class="hint" style="margin:0">Your Echo can control everything below with no Alexa skill or account linking. The hub shows up to Alexa as a Philips Hue bridge on your Wi-Fi. Say <b>"Alexa, discover devices"</b> (or in the Alexa app: Devices, +, Add Device, Philips Hue, then Discover). Then: "Alexa, turn on Game Day", "Alexa, set Bottom clouds to blue", "Alexa, set TV Room speakers to 30 percent", "Alexa, turn off Upper left".</p>
+      <p class="hint" id="axStatus" style="margin:0"></p>
+      <div id="axList" class="axlist"></div>
+      <p class="hint" style="margin:0">Rename something here if Alexa mixes it up with a device it already knows (like a Fire TV that's also in the Alexa app), then say "discover devices" again.</p>
     </div>
 
     <h2>Turning TVs on when they're fully off</h2>
@@ -1743,6 +1758,24 @@ $(".layout").addEventListener("click", (e) => {
   const end = () => { cancelHold(); clearInterval(scrollT); scrollT = null; if (!drag) return; drag.classList.remove("dragging"); drag = null; readLayout(); };
   document.addEventListener("pointerup", end); document.addEventListener("pointercancel", end);
 })();
+
+
+// ---------- Alexa ----------
+const AX_KIND = { tv: "TV", preset: "Preset", light: "Light", lightsAll: "Lights", sonos: "Speaker", sonosTv: "TV sound" };
+async function loadAlexa() {
+  try {
+    const r = await api("/api/alexa");
+    const st = r.status;
+    $("#axStatus").innerHTML = st.http ? `✅ Alexa bridge is running on this PC (${escH(st.ip)}).` : `⚠️ Alexa bridge isn't running: ${escH(st.error || "starting…")} Close whatever program uses port ${st.port} (often Skype, IIS or another "bridge" app) and restart TV Remote Hub in Server Hub.`;
+    $("#axList").innerHTML = r.devices.map((d) => `<div class="axrow" data-key="${escH(d.key)}"><span class="k">${AX_KIND[d.kind] || ""}</span><input type="text" value="${escH(d.name)}" placeholder="${escH(d.defName)}" aria-label="Alexa name"><input type="checkbox" ${d.enabled ? "checked" : ""} aria-label="Show in Alexa"></div>`).join("") || '<div class="empty">Add TVs, presets, lights or speakers first.</div>';
+  } catch (e) { $("#axStatus").textContent = e.message; }
+}
+$("#axList").addEventListener("change", async (e) => {
+  const row = e.target.closest(".axrow"); if (!row) return;
+  const body = e.target.type === "checkbox" ? { key: row.dataset.key, enabled: e.target.checked } : { key: row.dataset.key, name: e.target.value };
+  try { await api("/api/alexa", { method: "POST", body }); toast("Saved. Say \"Alexa, discover devices\""); } catch (err) { toast(err.message, true); }
+});
+$("#openSettings").addEventListener("click", () => setTimeout(loadAlexa, 50));
 
 // ---------- boot ----------
 async function loadTvs() {

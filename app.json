@@ -17,6 +17,7 @@
     "sonos.json",
     "lights.json",
     "spotify.json",
-    "cert.json"
+    "cert.json",
+    "alexa.json"
   ]
 }
