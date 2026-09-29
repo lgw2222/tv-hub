@@ -1019,7 +1019,7 @@ function renderSonos() {
       ${g.duration > 0 ? `<div class="prog"><span class="pc">${fmtT(g.position)}</span><input type="range" class="seek" min="0" max="${g.duration}" value="${g.position}" style="--p:${(g.position / g.duration) * 100}%" data-seek="${escH(g.id)}" aria-label="Song position"><span>${fmtT(g.duration)}</span></div>` : ""}
       <div class="modes">
         ${g.isQueue ? `<button data-shuffle="${shuffle ? 0 : 1}" data-rep="${rep}" aria-pressed="${shuffle}">Shuffle</button><button data-repeat="${rep}" data-sh="${shuffle ? 1 : 0}" aria-pressed="${rep !== "off"}">${rep === "one" ? "Repeat 1" : "Repeat"}</button>` : ""}
-        <span class="grow"></span><button class="music" data-music="${escH(g.id)}">Music</button>
+        <span class="grow"></span>${g.tvMember ? `<button data-input="tv" data-uuid2="${escH(g.tvMember)}" aria-pressed="${!!g.isTv}">TV</button>` : ""}${g.lineInMember ? `<button data-input="linein" data-uuid2="${escH(g.lineInMember)}" aria-pressed="${!!g.isLineIn}">Line-in</button>` : ""}<button class="music" data-music="${escH(g.id)}">Music</button>
       </div>
       ${multi ? volRow("Group volume", g.volume, g.members.every((m) => m.muted), `data-group="${escH(g.id)}"`, true) : ""}
       ${g.members.map((m) => volRow(multi ? m.name : "Volume", m.volume, m.muted, `data-uuid="${escH(m.uuid)}"`)).join("")}
@@ -1045,6 +1045,7 @@ $("#sonos").addEventListener("click", async (e) => {
     if (b.dataset.tr) { await api("/api/sonos/transport", { method: "POST", body: { group: gid, action: b.dataset.tr } }); setTimeout(() => loadSonos(), 700); }
     else if (b.dataset.shuffle !== undefined) { await api("/api/sonos/playmode", { method: "POST", body: { group: gid, shuffle: b.dataset.shuffle === "1", repeat: b.dataset.rep } }); loadSonos(); }
     else if (b.dataset.repeat !== undefined) { const nx = { off: "all", all: "one", one: "off" }[b.dataset.repeat]; await api("/api/sonos/playmode", { method: "POST", body: { group: gid, shuffle: b.dataset.sh === "1", repeat: nx } }); loadSonos(); }
+    else if (b.dataset.input) { const r = await api("/api/sonos/input", { method: "POST", body: { uuid: b.dataset.uuid2, kind: b.dataset.input } }); toast(r.did); setTimeout(() => loadSonos(), 1200); }
     else if (b.dataset.music) openMusic(b.dataset.music);
     else if (b.classList.contains("mute")) {
       const m = b.getAttribute("aria-pressed") !== "true";

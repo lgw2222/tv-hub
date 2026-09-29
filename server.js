@@ -683,6 +683,11 @@ app.post("/api/sonos/join", wrap(async (req, res) => {
   await sonosSoap(m.ip, "AVTransport", "SetAVTransportURI", { InstanceID: 0, CurrentURI: `x-rincon:${target.coordinator.uuid}`, CurrentURIMetaData: "" });
   res.json({ ok: true });
 }));
+app.post("/api/sonos/input", wrap(async (req, res) => {
+  const { uuid, kind } = req.body || {};
+  const { src } = await sonosInput(uuid, kind === "linein" ? "linein" : "tv");
+  res.json({ ok: true, did: `${src.name} switched to ${kind === "linein" ? "line-in" : "TV"}` });
+}));
 app.post("/api/sonos/leave", wrap(async (req, res) => {
   const { m } = await sonosFind((req.body || {}).uuid);
   await sonosSoap(m.ip, "AVTransport", "BecomeCoordinatorOfStandaloneGroup", { InstanceID: 0 });
@@ -886,6 +891,11 @@ async function sonosState() {
     g.isQueue = /^x-rincon-queue:/.test(g.source || "");
     g.isTv = /^x-sonos-htastream:/.test(g.source || "");
     if (g.isTv && !g.title) g.title = "TV audio";
+    await Promise.all(g.members.map(async (m) => { const d = await sonosModel(m.ip); m.model = d.model; m.hasTv = d.tv; m.hasLineIn = d.lineIn; }));
+    g.tvMember = (g.members.find((m) => m.hasTv) || {}).uuid || "";
+    g.lineInMember = (g.members.find((m) => m.hasLineIn) || {}).uuid || "";
+    g.isLineIn = /^x-rincon-stream:/.test(g.source || "");
+    if (g.isLineIn && !g.title) g.title = "Line-in";
     g.name = g.members.map((m) => m.name).join(" + ");
   }));
   return groups;
@@ -902,6 +912,36 @@ async function sonosGroupVolume(coordIp, vol) {
 }
 
 
+
+// which speakers have an HDMI/TV input (Beam, Arc, Ray, Playbar, Playbase, Amp) or a line-in (Five, Play:5, Port, Connect, Amp)
+const sonosModels = new Map();
+function sonosModel(ip) {
+  if (sonosModels.has(ip)) return Promise.resolve(sonosModels.get(ip));
+  return new Promise((resolve) => {
+    http.get({ host: ip, port: 1400, path: "/xml/device_description.xml", timeout: 3000 }, (r) => {
+      let x = ""; r.on("data", (c) => (x += c));
+      r.on("end", () => {
+        const model = xmlUnescape(tag(x, "modelName")) || "";
+        const d = { model, tv: /HTControl/.test(x) || /beam|arc|ray|playbar|playbase|amp/i.test(model),
+          lineIn: /five|play:5|port|connect|amp/i.test(model) };
+        sonosModels.set(ip, d); resolve(d);
+      });
+    }).on("error", () => resolve({ model: "", tv: false, lineIn: false })).on("timeout", function () { this.destroy(); });
+  });
+}
+// Switch a group to the soundbar's TV (HDMI) input or a speaker's line-in, keeping everyone else in the group listening
+async function sonosInput(uuid, kind) {
+  const groups = await sonosState();
+  const g = groups.find((x) => x.members.some((m) => m.uuid === uuid));
+  if (!g) throw new Error("Speaker not found. Tap Refresh.");
+  const src = g.members.find((m) => m.uuid === uuid);
+  const others = g.members.filter((m) => m.uuid !== uuid);
+  const uri = kind === "tv" ? `x-sonos-htastream:${uuid}:spdif` : `x-rincon-stream:${uuid}`;
+  await sonosSoap(src.ip, "AVTransport", "SetAVTransportURI", { InstanceID: 0, CurrentURI: uri, CurrentURIMetaData: "" });
+  if (kind !== "tv") await sonosSoap(src.ip, "AVTransport", "Play", { InstanceID: 0, Speed: 1 }).catch(() => {});
+  for (const m of others) await sonosSoap(m.ip, "AVTransport", "SetAVTransportURI", { InstanceID: 0, CurrentURI: `x-rincon:${uuid}`, CurrentURIMetaData: "" }).catch(() => {});
+  return { g, src };
+}
 // ---------- Sonos music: favorites, playlists, queue, Spotify links ----------
 const hmsToSec = (t) => { const p = String(t || "").split(":").map(Number); return p.length === 3 && p.every((n) => !isNaN(n)) ? p[0] * 3600 + p[1] * 60 + p[2] : 0; };
 const secToHms = (n) => { n = Math.max(0, Math.round(n)); return `${Math.floor(n / 3600)}:${String(Math.floor(n / 60) % 60).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`; };
@@ -1303,6 +1343,15 @@ app.post("/api/command", wrap(async (req, res) => {
         if (saidMusic) return res.status(400).json({ error: "Connect Spotify in the Music tab to play songs by name, or save it as a Sonos favorite." });
       }
     }
+  }
+  // 1c0. "sonos tv" / "switch the speakers to tv" / "tv sound on the beam"
+  if (/\b(sonos|speakers?|soundbar|beam|sound bar|music)\b/.test(text) && /\b(tv|hdmi|television)\b/.test(text) && !/\b(volume|louder|quieter|mute)\b/.test(text)) {
+    const groups = await sonosState();
+    const byRoom = groups.find((g) => g.members.some((m) => m.hasTv && text.includes(norm(m.name))));
+    const g = byRoom || groups.find((x) => x.tvMember);
+    if (!g) return res.status(400).json({ error: "None of your Sonos speakers has a TV (HDMI) input." });
+    await sonosInput(g.tvMember, "tv");
+    return res.json({ did: `${g.name}: switched to TV`, results: [] });
   }
   // 1c. Sonos ("sonos volume 30", "pause the music", "group all speakers")
   if (/\b(sonos|music|speaker|speakers)\b/.test(text)) {

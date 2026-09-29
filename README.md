@@ -119,3 +119,6 @@ Voice/typed: "play Harvest Moon on the TV Room", "play my Chill Vibes playlist",
 Lights → **Music sync**. The iPad (or PC) microphone listens to the room and flashes the chosen lights on the beat, like the MagicLight app's Music tab. Effects: Color jump, Pulse (one color), Rainbow, Strobe; adjust Sensitivity if it misses beats or flashes too much. When you stop, each light goes back to how it was.
 The mic only works on a secure page. The hub also runs one at **https://192.168.1.40:3443** (port = app port + 443). Open it on the iPad, accept the "not private" warning once (it's your own PC's self-made certificate), and add that page to the Home Screen. That also makes the voice-command mic button work.
 No mic? Tap the "Tap here on the beat" button a few times and the lights keep that tempo.
+
+## TV sound on Sonos
+Speaker cards with a soundbar (Beam, Arc, Ray…) have a **TV** button that switches that group to the TV's HDMI sound; the other speakers in the group keep playing along. Speakers with a line-in (Five, Port, Amp) get a **Line-in** button. Tapping **Music** and picking something switches back to music. Voice/typed: "switch the Sonos to TV".
