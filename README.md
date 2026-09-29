@@ -94,3 +94,12 @@ port, and starts. To update later, upload the new folder and tap Update on its c
 `tvs.json` is listed as a keep file, so your saved TVs survive updates.
 
 To run it on its own instead, use `npm install` then `node server.js` in this folder.
+
+
+## Sonos speakers
+The Speakers section finds your Sonos speakers on its own. You can play, pause and skip; set the group volume or each speaker's volume; mute; and use "Group with…", "Change group" or "Group all" the same way the Sonos app does. A Sub or surrounds bonded to a soundbar are part of that room and don't show up separately.
+
+## Lights (MagicLight / Magic Home)
+Tap Find in the Lights section. Your lights' names from the MagicLight app can't be read over the local network, so each light shows up as "Light" plus the last 6 characters of its MAC address. Tap ⋯, tap Blink it to see which light flashes, then rename it. Tapping a light's tile turns it on or off. Lights that are offline in the MagicLight app will show as offline here too.
+
+Voice/typed examples: "lights off", "window light blue", "bottom clouds 50%", "Sonos volume 30", "pause the music", "group all speakers".

@@ -142,12 +142,12 @@ details summary{cursor:pointer;color:var(--ink);font-weight:600;font-size:15px}
 @media (min-width:480px){.seg{grid-template-columns:repeat(4,1fr)}}
 
 /* layout areas: phone = one column, iPad = remote left, presets/voice/apps right */
-.layout{display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"pick" "pre" "remote" "voice" "apps";column-gap:28px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"pick" "pre" "remote" "voice" "sonos" "lights" "apps";column-gap:28px}
 .layout>section{min-width:0}
-.a-pick{grid-area:pick}.a-pre{grid-area:pre}.a-remote{grid-area:remote}.a-voice{grid-area:voice}.a-apps{grid-area:apps}
+.a-pick{grid-area:pick}.a-pre{grid-area:pre}.a-remote{grid-area:remote}.a-voice{grid-area:voice}.a-apps{grid-area:apps}.a-sonos{grid-area:sonos}.a-lights{grid-area:lights}
 @media (min-width:760px){
   .wrap{max-width:1080px;padding:18px 28px 34px}
-  .layout{grid-template-columns:minmax(340px,420px) 1fr;grid-template-areas:"pick pick" "remote pre" "remote voice" "remote apps";grid-template-rows:auto auto auto 1fr;align-items:start;align-content:start}
+  .layout{grid-template-columns:minmax(340px,420px) 1fr;grid-template-areas:"pick pick" "remote pre" "remote voice" "remote sonos" "remote lights" "remote apps";grid-template-rows:auto auto auto auto auto 1fr;align-items:start;align-content:start}
   .a-remote{position:sticky;top:12px}
   .apps{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
   .presets{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
@@ -156,6 +156,46 @@ details summary{cursor:pointer;color:var(--ink);font-weight:600;font-size:15px}
   .panel{max-width:640px;bottom:auto;top:6%;border-radius:22px;max-height:88%}
 }
 @media (min-width:1100px){.key{min-height:62px}.app{padding:18px 8px}}
+
+
+/* speakers + lights */
+.sechead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:22px 4px 10px}
+.sechead h2{margin:0}
+.sechead .mini{display:flex;gap:6px}
+.mini button{font-size:14px;font-weight:600;background:var(--key);padding:7px 11px;border-radius:10px}
+.sgroup{background:var(--key);border-radius:16px;padding:12px 12px 8px;margin-bottom:10px}
+.sg-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sg-name{font-weight:700;font-size:17px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sg-np{font-size:14px;color:var(--muted);margin:2px 0 8px;min-height:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sg-tr{display:flex;gap:6px;align-items:center}
+.sg-tr button{width:40px;height:40px;border-radius:12px;background:var(--key-lo);display:grid;place-items:center}
+.sg-tr svg{width:20px;height:20px}
+.vrow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 10px;padding:6px 0}
+.vrow .vl{font-size:15px;display:flex;justify-content:space-between;gap:8px;grid-column:1/-1}
+.vrow .vl span:last-child{color:var(--muted);font-variant-numeric:tabular-nums}
+.vrow.master .vl{font-weight:700}
+.vrow + .vrow{border-top:1px solid var(--line)}
+.mute{width:38px;height:34px;border-radius:10px;background:var(--key-lo);display:grid;place-items:center}
+.mute svg{width:18px;height:18px}.mute[aria-pressed="true"]{background:var(--power);color:#fff}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:30px;background:none!important;border:0!important;padding:0!important;margin:0;box-shadow:none!important}
+input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:4px;background:linear-gradient(to right,var(--gtv) var(--p,50%),var(--key-lo) var(--p,50%))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;background:#fff;margin-top:-8px;box-shadow:0 1px 4px rgba(0,0,0,.35)}
+input[type=range]::-moz-range-track{height:8px;border-radius:4px;background:var(--key-lo)}
+input[type=range]::-moz-range-progress{height:8px;border-radius:4px;background:var(--gtv)}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;border:0}
+.lights{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media (min-width:480px){.lights{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.light{background:var(--key);border-radius:14px;padding:12px 30px 12px 12px;display:flex;align-items:center;gap:10px;text-align:left;min-width:0;position:relative}
+.light .bulb{flex:0 0 auto;width:30px;height:30px;border-radius:50%;background:var(--key-lo);border:2px solid var(--line)}
+.light.on .bulb{background:var(--lc,#ffd76a);border-color:transparent;box-shadow:0 0 14px var(--lc,#ffd76a)}
+.light .ln{font-weight:600;font-size:15px;line-height:1.15;min-width:0;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.light .ls{font-size:12px;color:var(--muted)}
+.light.offline{opacity:.5}
+.light .more{position:absolute;right:4px;top:4px;width:30px;height:30px;border-radius:8px;color:var(--muted);font-size:18px;line-height:1}
+.swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.swatches button{aspect-ratio:1;border-radius:50%;border:2px solid var(--line)}
+.checks label{display:flex;align-items:center;gap:10px;padding:10px 4px;font-size:17px;border-bottom:1px solid var(--line)}
+.checks input{width:22px;height:22px}
 
 /* presets */
 .presets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}
@@ -256,10 +296,20 @@ details summary{cursor:pointer;color:var(--ink);font-weight:600;font-size:15px}
     <h2>Say or type a command</h2>
     <div class="voice">
       <button class="mic" id="micBtn" aria-label="Speak a command"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
-      <input id="cmdIn" placeholder="Game Day, ESPN on the Hisense, turn off all TVs" autocomplete="off" enterkeyhint="go">
+      <input id="cmdIn" placeholder="Game Day, ESPN on the Hisense, lights off, Sonos volume 30" autocomplete="off" enterkeyhint="go">
       <button class="btn" id="cmdGo">Go</button>
     </div>
     <div class="examples" id="examples"></div>
+  </section>
+
+  <section class="a-sonos">
+    <div class="sechead"><h2>Speakers</h2><div class="mini"><button id="sGroupAll">Group all</button><button id="sRefresh">Refresh</button></div></div>
+    <div id="sonos"><div class="empty">Looking for Sonos speakers…</div></div>
+  </section>
+
+  <section class="a-lights">
+    <div class="sechead"><h2>Lights</h2><div class="mini"><button id="lAllOn">All on</button><button id="lAllOff">All off</button><button id="lScan">Find</button></div></div>
+    <div class="lights" id="lights"><div class="empty">Tap Find to look for your MagicLight lights.</div></div>
   </section>
 
   <section class="a-apps">
@@ -272,6 +322,39 @@ details summary{cursor:pointer;color:var(--ink);font-weight:600;font-size:15px}
     <button class="btn" id="sendText">Send</button>
   </div>
   </section>
+  </div>
+</div>
+
+<!-- Sonos group editor -->
+<div class="sheet" id="gSheet" aria-hidden="true">
+  <div class="panel" role="dialog" aria-label="Group speakers">
+    <div class="panel-head"><h3 id="gTitle">Group with</h3><button class="btn ghost" id="gClose">Cancel</button></div>
+    <div class="form">
+      <p class="hint">Check the speakers that should play together. Unchecked speakers go back to playing on their own.</p>
+      <div class="checks" id="gChecks"></div>
+      <div class="actions"><button class="btn" id="gSave">Done</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Light editor -->
+<div class="sheet" id="lSheet" aria-hidden="true">
+  <div class="panel" role="dialog" aria-label="Light">
+    <div class="panel-head"><h3 id="lTitle">Light</h3><button class="btn ghost" id="lClose">Done</button></div>
+    <div class="form">
+      <label>Name<input id="lName" placeholder="Bottom clouds"></label>
+      <p class="hint">Not sure which light this is? Tap Blink and watch which one flashes. <span id="lInfo"></span></p>
+      <button class="btn ghost" id="lBlink">Blink it</button>
+      <label>Color</label>
+      <div class="swatches" id="lSwatches"></div>
+      <label>Custom color<input type="color" id="lColor" value="#ffffff" style="height:44px;padding:2px"></label>
+      <label>Brightness <span id="lBriVal"></span><input type="range" id="lBri" min="5" max="100" value="100"></label>
+      <div class="actions">
+        <button class="btn danger" id="lDelete">Remove</button>
+        <button class="btn ghost" id="lOff">Turn off</button>
+        <button class="btn" id="lOn">Turn on</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -466,7 +549,7 @@ for (const btn of $$("[data-cmd]")) {
 }
 // keyboard arrows work on desktop
 document.addEventListener("keydown", (e) => {
-  if (e.target.matches("input,select") || $("#sheet").classList.contains("open") || $("#pSheet").classList.contains("open")) return;
+  if (e.target.matches("input,select") || document.querySelector(".sheet.open")) return;
   const map = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", Enter: "ok", Backspace: "back", Escape: "back" };
   if (map[e.key] && !e.target.matches("button")) { e.preventDefault(); sendKey(map[e.key]); }
 });
@@ -780,7 +863,7 @@ $("#peDelete").onclick = async () => {
 function renderExamples() {
   const ex = [...presets.slice(0, 2).map((p) => p.name)];
   const r = tvs.find((t) => t.type === "roku"); if (r) ex.push(`YouTube on the ${r.name}`);
-  ex.push("Turn off all TVs");
+  ex.push("Turn off all TVs"); if (lightList.length) ex.push("Lights off"); if (sonosGroups.length) ex.push("Sonos volume 30");
   $("#examples").innerHTML = "";
   for (const e of ex) { const b = document.createElement("button"); b.textContent = e; b.onclick = () => runCommand(e); $("#examples").appendChild(b); }
 }
@@ -810,6 +893,166 @@ $("#micBtn").onclick = () => {
     toast("Tap the mic on your keyboard, say the command, then Go");
   }
 };
+
+
+// ---------- Sonos speakers ----------
+const escH = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const ICON = {
+  prev: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>',
+  next: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>',
+  play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>',
+  spk: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg>',
+  muted: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>',
+};
+let sonosGroups = [], sonosBusyUntil = 0;
+async function loadSonos(quiet = true) {
+  if (Date.now() < sonosBusyUntil) return; // don't yank a slider someone is dragging
+  try { sonosGroups = (await api("/api/sonos")).groups; renderSonos(); renderExamples(); }
+  catch (e) { if (!quiet) toast(e.message, true); if (!sonosGroups.length) $("#sonos").innerHTML = `<div class="empty">${escH(e.message)}</div>`; }
+}
+function volRow(label, vol, muted, attrs, master) {
+  const v = vol == null ? 0 : vol;
+  return `<div class="vrow${master ? " master" : ""}"><div class="vl"><span>${escH(label)}</span><span class="vv">${vol == null ? "–" : v}</span></div>
+    <input type="range" min="0" max="100" value="${v}" style="--p:${v}%" ${attrs} aria-label="${escH(label)} volume">
+    <button class="mute" aria-pressed="${!!muted}" ${attrs} aria-label="Mute ${escH(label)}">${muted ? ICON.muted : ICON.spk}</button></div>`;
+}
+function renderSonos() {
+  const box = $("#sonos");
+  if (!sonosGroups.length) { box.innerHTML = '<div class="empty">No Sonos speakers found.</div>'; return; }
+  box.innerHTML = sonosGroups.map((g) => {
+    const playing = /PLAYING|TRANSITIONING/.test(g.state || "");
+    const np = g.title ? `${g.title}${g.artist ? " · " + g.artist : ""}` : (playing ? "Playing" : "Nothing playing");
+    const multi = g.members.length > 1;
+    return `<div class="sgroup" data-g="${escH(g.id)}">
+      <div class="sg-top"><div class="sg-name">${escH(g.name)}</div>
+        <div class="sg-tr"><button data-tr="previous" aria-label="Previous">${ICON.prev}</button><button data-tr="toggle" aria-label="${playing ? "Pause" : "Play"}">${playing ? ICON.pause : ICON.play}</button><button data-tr="next" aria-label="Next">${ICON.next}</button></div></div>
+      <div class="sg-np">${escH(np)}</div>
+      ${multi ? volRow("Group volume", g.volume, g.members.every((m) => m.muted), `data-group="${escH(g.id)}"`, true) : ""}
+      ${g.members.map((m) => volRow(multi ? m.name : "Volume", m.volume, m.muted, `data-uuid="${escH(m.uuid)}"`)).join("")}
+      <div class="mini" style="justify-content:flex-end;padding:4px 0"><button data-edit="${escH(g.id)}">${multi ? "Change group" : "Group with…"}</button></div>
+    </div>`;
+  }).join("");
+}
+const sendVol = {};
+$("#sonos").addEventListener("input", (e) => {
+  const r = e.target; if (r.type !== "range") return;
+  sonosBusyUntil = Date.now() + 2500;
+  r.style.setProperty("--p", r.value + "%"); r.closest(".vrow").querySelector(".vv").textContent = r.value;
+  const key = r.dataset.group || r.dataset.uuid;
+  clearTimeout(sendVol[key]);
+  sendVol[key] = setTimeout(() => api("/api/sonos/volume", { method: "POST", body: { group: r.dataset.group, uuid: r.dataset.uuid, volume: Number(r.value) } })
+    .then(() => { if (r.dataset.group) setTimeout(() => { sonosBusyUntil = 0; loadSonos(); }, 400); }).catch((err) => toast(err.message, true)), 180);
+});
+$("#sonos").addEventListener("click", async (e) => {
+  const b = e.target.closest("button"); if (!b) return; buzz();
+  const gid = b.closest(".sgroup")?.dataset.g;
+  try {
+    if (b.dataset.tr) { await api("/api/sonos/transport", { method: "POST", body: { group: gid, action: b.dataset.tr } }); setTimeout(() => loadSonos(), 700); }
+    else if (b.classList.contains("mute")) {
+      const m = b.getAttribute("aria-pressed") !== "true";
+      await api("/api/sonos/mute", { method: "POST", body: { group: b.dataset.group, uuid: b.dataset.uuid, mute: m } }); loadSonos();
+    } else if (b.dataset.edit) openGroup(b.dataset.edit);
+  } catch (err) { toast(err.message, true); }
+});
+$("#sRefresh").onclick = () => { buzz(); loadSonos(false); };
+$("#sGroupAll").onclick = async () => {
+  buzz();
+  try { await api("/api/sonos/all", { method: "POST", body: {} }); toast("All speakers grouped"); setTimeout(() => loadSonos(), 1200); }
+  catch (e) { toast(e.message, true); }
+};
+let groupEditing = null;
+function openGroup(gid) {
+  const g = sonosGroups.find((x) => x.id === gid); if (!g) return;
+  groupEditing = g;
+  $("#gTitle").textContent = `Play with ${g.coordinator.name}`;
+  const all = sonosGroups.flatMap((x) => x.members.map((m) => ({ ...m, inHere: x.id === gid })));
+  $("#gChecks").innerHTML = all.map((m) => `<label><input type="checkbox" value="${escH(m.uuid)}" ${m.inHere ? "checked" : ""} ${m.uuid === g.coordinator.uuid ? "disabled" : ""}> ${escH(m.name)}</label>`).join("");
+  $("#gSheet").classList.add("open"); $("#gSheet").setAttribute("aria-hidden", "false");
+}
+function closeGroup() { $("#gSheet").classList.remove("open"); $("#gSheet").setAttribute("aria-hidden", "true"); }
+$("#gClose").onclick = closeGroup;
+$("#gSheet").addEventListener("click", (e) => { if (e.target.id === "gSheet") closeGroup(); });
+$("#gSave").onclick = async () => {
+  const g = groupEditing; const btn = $("#gSave"); btn.disabled = true; btn.textContent = "Grouping…";
+  try {
+    for (const c of $("#gChecks").querySelectorAll("input:not([disabled])")) {
+      const was = g.members.some((m) => m.uuid === c.value);
+      if (c.checked && !was) await api("/api/sonos/join", { method: "POST", body: { uuid: c.value, to: g.id } });
+      if (!c.checked && was) await api("/api/sonos/leave", { method: "POST", body: { uuid: c.value } });
+    }
+    closeGroup(); setTimeout(() => loadSonos(false), 900);
+  } catch (e) { toast(e.message, true); }
+  btn.disabled = false; btn.textContent = "Done";
+};
+
+// ---------- lights ----------
+let lightList = [], lightEditing = null;
+const SWATCHES = ["#ffffff", "#ffd28a", "#ff0000", "#ff6a00", "#ffd000", "#00ff00", "#00c8a0", "#00ffff", "#0060ff", "#8000ff", "#ff00ff", "#ff3399"];
+const rgbHex = (l) => "#" + [l.r, l.g, l.b].map((v) => (v || 0).toString(16).padStart(2, "0")).join("");
+async function loadLights() {
+  try { lightList = (await api("/api/lights")).lights; renderLights(); renderExamples(); } catch (e) { toast(e.message, true); }
+}
+function renderLights() {
+  const box = $("#lights");
+  if (!lightList.length) { box.innerHTML = '<div class="empty">Tap Find to look for your MagicLight lights.</div>'; return; }
+  box.innerHTML = lightList.map((l) => `<button class="light${l.on ? " on" : ""}${l.online ? "" : " offline"}" data-id="${escH(l.id)}" style="--lc:${l.online && (l.r || l.g || l.b) ? rgbHex(l) : "#ffd76a"}">
+    <span class="bulb"></span><span style="min-width:0"><span class="ln">${escH(l.name)}</span><span class="ls">${l.online ? (l.on ? "On" : "Off") : "Offline"}</span></span>
+    <span class="more" data-more="${escH(l.id)}" aria-label="Edit ${escH(l.name)}">⋯</span></button>`).join("");
+}
+$("#lights").addEventListener("click", async (e) => {
+  const tile = e.target.closest(".light"); if (!tile) return; buzz();
+  const l = lightList.find((x) => x.id === tile.dataset.id);
+  if (e.target.closest("[data-more]") || !l.online) return openLight(l);
+  l.on = !l.on; renderLights();
+  try { await api(`/api/lights/${l.id}`, { method: "POST", body: { on: l.on } }); } catch (err) { toast(err.message, true); l.on = !l.on; renderLights(); }
+});
+async function allLights(on) {
+  buzz();
+  try { const r = await api("/api/lights/all", { method: "POST", body: { on } }); toast(r.failed ? `${r.failed} light(s) didn't answer` : on ? "Lights on" : "Lights off", !!r.failed); loadLights(); }
+  catch (e) { toast(e.message, true); }
+}
+$("#lAllOn").onclick = () => allLights(true);
+$("#lAllOff").onclick = () => allLights(false);
+$("#lScan").onclick = async () => {
+  buzz(); toast("Looking for lights…");
+  try { const r = await api("/api/lights/scan", { method: "POST" }); toast(r.added ? `Found ${r.added} new light(s). Tap ⋯ to name them.` : `Found ${r.found} light(s), nothing new`); loadLights(); }
+  catch (e) { toast(e.message, true); }
+};
+function openLight(l) {
+  lightEditing = l;
+  $("#lTitle").textContent = l.name; $("#lName").value = l.name;
+  $("#lInfo").textContent = `(${l.ip}${l.mac ? " · " + l.mac.toUpperCase() : ""}${l.online ? "" : " · not answering"})`;
+  $("#lColor").value = l.online && (l.r || l.g || l.b) ? rgbHex(l) : "#ffffff";
+  const bri = l.brightness || 100; $("#lBri").value = bri; $("#lBri").style.setProperty("--p", bri + "%"); $("#lBriVal").textContent = bri + "%";
+  $("#lSheet").classList.add("open"); $("#lSheet").setAttribute("aria-hidden", "false");
+}
+function closeLight() {
+  const l = lightEditing; const n = $("#lName").value.trim();
+  if (l && n && n !== l.name) api(`/api/lights/${l.id}`, { method: "POST", body: { name: n } }).then(loadLights);
+  $("#lSheet").classList.remove("open"); $("#lSheet").setAttribute("aria-hidden", "true"); setTimeout(loadLights, 300);
+}
+$("#lClose").onclick = closeLight;
+$("#lSheet").addEventListener("click", (e) => { if (e.target.id === "lSheet") closeLight(); });
+const lightDo = (body, msg) => api(`/api/lights/${lightEditing.id}`, { method: "POST", body }).then(() => msg && toast(msg)).catch((e) => toast(e.message, true));
+$("#lSwatches").innerHTML = SWATCHES.map((c) => `<button style="background:${c}" data-c="${c}" aria-label="Color ${c}"></button>`).join("");
+$("#lSwatches").onclick = (e) => { const c = e.target.dataset.c; if (!c) return; buzz(); $("#lColor").value = c; lightDo({ on: true, color: c, brightness: Number($("#lBri").value) }); };
+$("#lColor").addEventListener("change", (e) => lightDo({ on: true, color: e.target.value, brightness: Number($("#lBri").value) }));
+let briT;
+$("#lBri").addEventListener("input", (e) => {
+  const v = e.target.value; e.target.style.setProperty("--p", v + "%"); $("#lBriVal").textContent = v + "%";
+  clearTimeout(briT); briT = setTimeout(() => lightDo({ on: true, color: $("#lColor").value, brightness: Number(v) }), 200);
+});
+$("#lBlink").onclick = () => { buzz(); lightDo({ blink: true }, "Blinking…"); };
+$("#lOn").onclick = () => lightDo({ on: true }, "On");
+$("#lOff").onclick = () => lightDo({ on: false }, "Off");
+$("#lDelete").onclick = async () => {
+  if (!confirm(`Remove ${lightEditing.name} from this app? (Find will add it back.)`)) return;
+  await api(`/api/lights/${lightEditing.id}`, { method: "DELETE" }); lightEditing = null; closeLight();
+};
+loadSonos(); loadLights();
+setInterval(() => { if (!document.hidden) { loadSonos(); } }, 10000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { loadSonos(); loadLights(); } });
 
 // ---------- boot ----------
 async function loadTvs() {

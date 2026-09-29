@@ -13,6 +13,8 @@
   "keep": [
     "tvs.json",
     "presets.json",
-    "harmony.json"
+    "harmony.json",
+    "sonos.json",
+    "lights.json"
   ]
 }

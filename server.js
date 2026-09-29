@@ -543,6 +543,89 @@ app.post("/api/tvs/:id/vega/verify", wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
+// ---------- Sonos + lights routes ----------
+app.get("/api/sonos", wrap(async (req, res) => res.json({ groups: await sonosState() })));
+app.post("/api/sonos/volume", wrap(async (req, res) => {
+  const { uuid, group, volume } = req.body || {};
+  if (group) { const { g } = await sonosFind(group); await sonosGroupVolume(g.coordinator.ip, volume); }
+  else { const { m } = await sonosFind(uuid); await sonosSoap(m.ip, "RenderingControl", "SetVolume", { InstanceID: 0, Channel: "Master", DesiredVolume: clamp(volume) }); }
+  res.json({ ok: true });
+}));
+app.post("/api/sonos/mute", wrap(async (req, res) => {
+  const { uuid, group, mute } = req.body || {};
+  if (group) { const { g } = await sonosFind(group); await sonosSoap(g.coordinator.ip, "GroupRenderingControl", "SetGroupMute", { InstanceID: 0, DesiredMute: mute ? 1 : 0 }); }
+  else { const { m } = await sonosFind(uuid); await sonosSoap(m.ip, "RenderingControl", "SetMute", { InstanceID: 0, Channel: "Master", DesiredMute: mute ? 1 : 0 }); }
+  res.json({ ok: true });
+}));
+app.post("/api/sonos/transport", wrap(async (req, res) => {
+  const { group, action } = req.body || {};
+  const { g } = await sonosFind(group);
+  const map = { play: ["Play", { InstanceID: 0, Speed: 1 }], pause: ["Pause", { InstanceID: 0 }], next: ["Next", { InstanceID: 0 }], previous: ["Previous", { InstanceID: 0 }] };
+  let a = map[action]; if (action === "toggle") a = /PLAYING/.test(g.state) ? map.pause : map.play;
+  if (!a) return res.status(400).json({ error: "Unknown action" });
+  await sonosSoap(g.coordinator.ip, "AVTransport", a[0], a[1]);
+  res.json({ ok: true });
+}));
+app.post("/api/sonos/join", wrap(async (req, res) => {
+  const { uuid, to } = req.body || {};
+  const { m, groups } = await sonosFind(uuid);
+  const target = groups.find((g) => g.id === to || g.members.some((x) => x.uuid === to));
+  if (!target) return res.status(400).json({ error: "Group not found" });
+  await sonosSoap(m.ip, "AVTransport", "SetAVTransportURI", { InstanceID: 0, CurrentURI: `x-rincon:${target.coordinator.uuid}`, CurrentURIMetaData: "" });
+  res.json({ ok: true });
+}));
+app.post("/api/sonos/leave", wrap(async (req, res) => {
+  const { m } = await sonosFind((req.body || {}).uuid);
+  await sonosSoap(m.ip, "AVTransport", "BecomeCoordinatorOfStandaloneGroup", { InstanceID: 0 });
+  res.json({ ok: true });
+}));
+app.post("/api/sonos/all", wrap(async (req, res) => {
+  const groups = await sonosState();
+  const into = (req.body || {}).to ? groups.find((g) => g.id === req.body.to) : groups[0];
+  if (!into) return res.status(400).json({ error: "No speakers" });
+  for (const g of groups) for (const m of g.members) if (g !== into)
+    await sonosSoap(m.ip, "AVTransport", "SetAVTransportURI", { InstanceID: 0, CurrentURI: `x-rincon:${into.coordinator.uuid}`, CurrentURIMetaData: "" }).catch(() => {});
+  res.json({ ok: true });
+}));
+
+app.get("/api/lights", wrap(async (req, res) => {
+  const out = await Promise.all(lights.map(async (l) => ({ ...l, ...(await lightStatus(l)) })));
+  res.json({ lights: out });
+}));
+app.post("/api/lights/scan", wrap(async (req, res) => {
+  const found = await lightsDiscover();
+  let added = 0;
+  for (const f of found) {
+    const ex = lights.find((l) => (f.mac && l.mac === f.mac) || l.ip === f.ip);
+    if (ex) { ex.ip = f.ip; if (f.mac) ex.mac = f.mac; continue; }
+    lights.push({ id: Date.now().toString(36) + added, name: `Light ${(f.mac || f.ip).replace(/:/g, "").slice(-6).toUpperCase()}`, ip: f.ip, mac: f.mac, model: f.model });
+    added++;
+  }
+  saveLights();
+  res.json({ found: found.length, added });
+}));
+app.post("/api/lights", (req, res) => {
+  const { name, ip } = req.body || {};
+  if (!name || !ip) return res.status(400).json({ error: "Name and IP are required." });
+  const l = { id: Date.now().toString(36), name: String(name).trim(), ip: String(ip).trim() };
+  lights.push(l); saveLights(); res.json(l);
+});
+app.post("/api/lights/all", wrap(async (req, res) => {
+  const on = !!(req.body || {}).on;
+  const results = await Promise.allSettled(lights.map((l) => lightPower(l, on)));
+  res.json({ ok: true, failed: results.filter((r) => r.status === "rejected").length });
+}));
+app.post("/api/lights/:id", wrap(async (req, res) => {
+  const l = findLight(req.params.id);
+  if (!l) return res.status(404).json({ error: "Light not found" });
+  const b = req.body || {};
+  if (b.name !== undefined) { l.name = String(b.name).trim().slice(0, 40) || l.name; saveLights(); }
+  if (b.blink) { const s = await lightStatus(l); for (let i = 0; i < 3; i++) { await lightPower(l, false); await new Promise((r) => setTimeout(r, 400)); await lightPower(l, true); await new Promise((r) => setTimeout(r, 400)); } if (s.online && !s.on) await lightPower(l, false); }
+  if (b.on !== undefined || b.color || b.brightness != null) await setLight(l, b);
+  res.json({ ok: true });
+}));
+app.delete("/api/lights/:id", (req, res) => { lights = lights.filter((l) => l.id !== req.params.id); saveLights(); res.json({ ok: true }); });
+
 app.post("/api/tvs/:id/connect", wrap(async (req, res) => {
   const tv = findTv(req.params.id);
   if (!tv || tv.type === "roku" || tv.type === "vega") return res.status(400).json({ error: "Connect is only for Google TV and Fire TV" });
@@ -562,6 +645,163 @@ app.post("/api/tvs/:id/pair", wrap(async (req, res) => {
 }));
 
 app.get("/api/scan", wrap(async (req, res) => res.json(await scanRokus())));
+
+// ---------- Sonos (local UPnP on port 1400) ----------
+const SONOS_FILE = path.join(__dirname, "sonos.json");
+let sonosKnown = (() => { try { return JSON.parse(fs.readFileSync(SONOS_FILE, "utf8")); } catch { return { ips: [] }; } })();
+const saveSonos = () => fs.writeFileSync(SONOS_FILE, JSON.stringify(sonosKnown, null, 2));
+const xmlUnescape = (s) => String(s || "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
+const xmlEsc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const SONOS_SVC = {
+  AVTransport: ["/MediaRenderer/AVTransport/Control", "urn:schemas-upnp-org:service:AVTransport:1"],
+  RenderingControl: ["/MediaRenderer/RenderingControl/Control", "urn:schemas-upnp-org:service:RenderingControl:1"],
+  GroupRenderingControl: ["/MediaRenderer/GroupRenderingControl/Control", "urn:schemas-upnp-org:service:GroupRenderingControl:1"],
+  ZoneGroupTopology: ["/ZoneGroupTopology/Control", "urn:schemas-upnp-org:service:ZoneGroupTopology:1"],
+};
+function sonosSoap(ip, svc, action, args = {}) {
+  const [p, urn] = SONOS_SVC[svc];
+  const inner = Object.entries(args).map(([k, v]) => `<${k}>${xmlEsc(v)}</${k}>`).join("");
+  const body = `<?xml version="1.0" encoding="utf-8"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body><u:${action} xmlns:u="${urn}">${inner}</u:${action}></s:Body></s:Envelope>`;
+  return new Promise((resolve, reject) => {
+    const req = http.request({ host: ip, port: 1400, path: p, method: "POST", timeout: 4000,
+      headers: { "Content-Type": 'text/xml; charset="utf-8"', SOAPACTION: `"${urn}#${action}"`, "Content-Length": Buffer.byteLength(body) } }, (res) => {
+      let out = ""; res.on("data", (c) => (out += c));
+      res.on("end", () => (res.statusCode === 200 ? resolve(out) : reject(new Error(`Sonos ${ip} said ${res.statusCode} to ${action}`))));
+    });
+    req.on("timeout", () => req.destroy(new Error("timeout")));
+    req.on("error", (e) => reject(new Error(`Can't reach Sonos at ${ip} (${e.message})`)));
+    req.write(body); req.end();
+  });
+}
+const tag = (x, t) => { const m = String(x).match(new RegExp(`<(?:[\\w]+:)?${t}[^>]*>([\\s\\S]*?)</(?:[\\w]+:)?${t}>`)); return m ? m[1] : ""; };
+function sonosDiscover(ms = 2500) {
+  return new Promise((resolve) => {
+    const found = new Set();
+    const sock = dgram.createSocket({ type: "udp4", reuseAddr: true });
+    const msg = Buffer.from('M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: "ssdp:discover"\r\nMX: 1\r\nST: urn:schemas-upnp-org:device:ZonePlayer:1\r\n\r\n');
+    sock.on("message", (buf, r) => { if (/ZonePlayer|Sonos/i.test(buf.toString())) found.add(r.address); });
+    sock.on("error", () => { try { sock.close(); } catch {} resolve([...found]); });
+    sock.bind(() => { sock.send(msg, 1900, "239.255.255.250"); setTimeout(() => { try { sock.send(msg, 1900, "239.255.255.250"); } catch {} }, 700); });
+    setTimeout(() => { try { sock.close(); } catch {} resolve([...found]); }, ms);
+  });
+}
+async function sonosAnyIp() {
+  for (const ip of sonosKnown.ips) { try { await sonosSoap(ip, "ZoneGroupTopology", "GetZoneGroupState"); return ip; } catch {} }
+  const ips = await sonosDiscover();
+  if (ips.length) { sonosKnown.ips = ips; saveSonos(); return ips[0]; }
+  throw new Error("No Sonos speakers found. Make sure the PC is on the same network as the speakers.");
+}
+async function sonosState() {
+  const ip = await sonosAnyIp();
+  const raw = xmlUnescape(tag(await sonosSoap(ip, "ZoneGroupTopology", "GetZoneGroupState"), "ZoneGroupState"));
+  const groups = [];
+  const allIps = new Set(sonosKnown.ips);
+  for (const g of raw.match(/<ZoneGroup [\s\S]*?<\/ZoneGroup>/g) || []) {
+    const coord = (g.match(/Coordinator="([^"]+)"/) || [])[1];
+    const members = [];
+    for (const m of g.match(/<ZoneGroupMember [^>]*?\/?>/g) || []) {
+      const a = (k) => (m.match(new RegExp(` ${k}="([^"]*)"`)) || [])[1] || "";
+      if (a("Invisible") === "1") continue; // bonded Sub / surrounds ride along with their room
+      const mip = (a("Location").match(/\/\/([\d.]+):/) || [])[1];
+      if (!mip) continue;
+      allIps.add(mip);
+      members.push({ uuid: a("UUID"), name: a("ZoneName"), ip: mip, coordinator: a("UUID") === coord });
+    }
+    if (!members.length) continue;
+    members.sort((x, y) => (y.coordinator - x.coordinator) || x.name.localeCompare(y.name));
+    groups.push({ id: coord, coordinator: members.find((m) => m.coordinator) || members[0], members });
+  }
+  sonosKnown.ips = [...allIps]; saveSonos();
+  await Promise.all(groups.map(async (g) => {
+    const cip = g.coordinator.ip;
+    await Promise.all(g.members.map(async (m) => {
+      try { m.volume = Number(tag(await sonosSoap(m.ip, "RenderingControl", "GetVolume", { InstanceID: 0, Channel: "Master" }), "CurrentVolume")); } catch { m.volume = null; }
+      try { m.muted = tag(await sonosSoap(m.ip, "RenderingControl", "GetMute", { InstanceID: 0, Channel: "Master" }), "CurrentMute") === "1"; } catch {}
+    }));
+    try { g.volume = Number(tag(await sonosSoap(cip, "GroupRenderingControl", "GetGroupVolume", { InstanceID: 0 }), "CurrentVolume")); } catch { g.volume = g.members[0].volume; }
+    try { g.state = tag(await sonosSoap(cip, "AVTransport", "GetTransportInfo", { InstanceID: 0 }), "CurrentTransportState"); } catch { g.state = ""; }
+    try {
+      const meta = xmlUnescape(tag(await sonosSoap(cip, "AVTransport", "GetPositionInfo", { InstanceID: 0 }), "TrackMetaData"));
+      g.title = xmlUnescape(tag(meta, "title")); g.artist = xmlUnescape(tag(meta, "creator"));
+      const stream = xmlUnescape(tag(meta, "streamContent")); if (stream && !g.artist) g.artist = stream;
+    } catch {}
+    g.name = g.members.map((m) => m.name).join(" + ");
+  }));
+  return groups;
+}
+async function sonosFind(uuid) {
+  const groups = await sonosState();
+  for (const g of groups) for (const m of g.members) if (m.uuid === uuid) return { g, m, groups };
+  throw new Error("That Sonos speaker wasn't found. Tap Refresh.");
+}
+const clamp = (v) => Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
+async function sonosGroupVolume(coordIp, vol) {
+  await sonosSoap(coordIp, "GroupRenderingControl", "SnapshotGroupVolume", { InstanceID: 0 }).catch(() => {});
+  return sonosSoap(coordIp, "GroupRenderingControl", "SetGroupVolume", { InstanceID: 0, DesiredVolume: clamp(vol) });
+}
+
+// ---------- MagicLight / Magic Home / ZENGGE lights (local TCP 5577) ----------
+const LIGHTS_FILE = path.join(__dirname, "lights.json");
+let lights = (() => { try { return JSON.parse(fs.readFileSync(LIGHTS_FILE, "utf8")); } catch { return []; } })();
+const saveLights = () => fs.writeFileSync(LIGHTS_FILE, JSON.stringify(lights, null, 2));
+const withSum = (arr) => Buffer.from([...arr, arr.reduce((a, b) => a + b, 0) & 0xff]);
+function lightSend(ip, bytes, expect = 0) {
+  return new Promise((resolve, reject) => {
+    const sock = require("net").connect({ host: ip, port: 5577 });
+    let buf = Buffer.alloc(0), done = false;
+    const fin = (err, val) => { if (done) return; done = true; sock.destroy(); err ? reject(err) : resolve(val); };
+    sock.setTimeout(3000, () => fin(expect ? new Error(`Light at ${ip} didn't answer`) : null, buf));
+    sock.on("connect", () => { sock.write(withSum(bytes)); if (!expect) setTimeout(() => fin(null, buf), 150); });
+    sock.on("data", (d) => { buf = Buffer.concat([buf, d]); if (expect && buf.length >= expect) fin(null, buf); });
+    sock.on("error", (e) => fin(new Error(`Can't reach the light at ${ip} (${e.code || e.message})`)));
+  });
+}
+async function lightStatus(l) {
+  try {
+    const r = await lightSend(l.ip, [0x81, 0x8a, 0x8b], 14);
+    const i = r.indexOf(0x81); const s = i >= 0 ? r.slice(i) : r;
+    return { online: true, on: s[2] === 0x23, r: s[6], g: s[7], b: s[8], w: s[9], model: s[1] };
+  } catch (e) { return { online: false, error: e.message }; }
+}
+const lightPower = (l, on) => lightSend(l.ip, [0x71, on ? 0x23 : 0x24, 0x0f]);
+function lightColor(l, r, g, b) {
+  // RGB write; the 0xF0 mask tells controllers with a white channel to leave white alone
+  return lightSend(l.ip, [0x31, r & 255, g & 255, b & 255, 0x00, 0x00, 0xf0, 0x0f]);
+}
+function lightsDiscover(ms = 2500) {
+  return new Promise((resolve) => {
+    const found = [];
+    const sock = dgram.createSocket({ type: "udp4", reuseAddr: true });
+    sock.on("message", (buf, r) => {
+      const t = buf.toString().trim();
+      if (!/^\d+\.\d+\.\d+\.\d+,/.test(t)) return;
+      const [ip, mac, model] = t.split(",");
+      if (!found.some((f) => f.ip === ip)) found.push({ ip, mac: normMac(mac), model: model || "" });
+    });
+    sock.on("error", () => { try { sock.close(); } catch {} resolve(found); });
+    sock.bind(() => {
+      sock.setBroadcast(true);
+      const probe = Buffer.from("HF-A11ASSISTHREAD");
+      const send = () => { try { sock.send(probe, 48899, "255.255.255.255"); } catch {} for (const l of lights) { try { sock.send(probe, 48899, l.ip); } catch {} } };
+      send(); setTimeout(send, 800);
+    });
+    setTimeout(() => { try { sock.close(); } catch {} resolve(found); }, ms);
+  });
+}
+function hexToRgb(h) { const m = String(h || "").replace("#", "").match(/^([0-9a-f]{6})$/i); if (!m) return null; const n = parseInt(m[1], 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+async function setLight(l, { on, color, brightness }) {
+  if (on === false) return lightPower(l, false);
+  if (on === true && color == null && brightness == null) return lightPower(l, true);
+  let rgb = color ? hexToRgb(color) : null;
+  if (!rgb) { const s = await lightStatus(l); rgb = s.online && (s.r || s.g || s.b) ? [s.r, s.g, s.b] : [255, 255, 255]; if (!color && brightness != null && s.online) { const mx = Math.max(s.r, s.g, s.b) || 255; rgb = [s.r, s.g, s.b].map((v) => (v / mx) * 255); } }
+  if (brightness != null) { const k = Math.max(1, Math.min(100, Number(brightness))) / 100; const mx = Math.max(...rgb) || 255; rgb = rgb.map((v) => Math.round((v / mx) * 255 * k)); }
+  if (on === true) await lightPower(l, true);
+  if (color) l.color = color;
+  if (brightness != null) l.brightness = Number(brightness);
+  saveLights();
+  return lightColor(l, ...rgb);
+}
+const findLight = (id) => lights.find((l) => l.id === id);
 
 // ---------- presets ----------
 const PRESETS_FILE = path.join(__dirname, "presets.json");
@@ -689,6 +929,38 @@ app.post("/api/command", wrap(async (req, res) => {
   const pText = text.replace(/^(run|start|do|play|activate|set up|setup)\s+/, "").replace(/\s+(preset|mode|scene)$/, "");
   const preset = presets.find((p) => norm(p.name) === pText) || presets.find((p) => text.includes(norm(p.name)) && norm(p.name).length > 2);
   if (preset) return res.json({ did: `Running ${preset.name}`, results: await runSteps(preset.steps) });
+  // 1b. lights ("turn on the lights", "bottom clouds off", "make the window light blue")
+  const namedLights = lights.filter((l) => { const n = norm(l.name); return n && (text.includes(n) || n.split(" ").filter((w) => w.length > 3 && !["light", "lights", "bottom", "front"].includes(w)).some((w) => new RegExp(`\\b${w}\\b`).test(text))); });
+  if (lights.length && (/\b(light|lights|lamp|lamps|bulb|bulbs|strip)\b/.test(text) || namedLights.length) && !tvs.some((t) => text.includes(norm(t.name)))) {
+    const named = namedLights;
+    const which = named.length ? named : lights;
+    const COLORS = { red: "#ff0000", green: "#00ff00", blue: "#0000ff", purple: "#8000ff", pink: "#ff3399", orange: "#ff6a00", yellow: "#ffd000", white: "#ffffff", cyan: "#00ffff", teal: "#00c8a0" };
+    const col = Object.keys(COLORS).find((c) => new RegExp(`\\b${c}\\b`).test(text));
+    const off = /\b(off|out)\b/.test(text);
+    const pct = (raw.toLowerCase().match(/(\d{1,3}) ?(%|percent)/) || text.match(/\b(?:brightness|to|at) (\d{1,3})\b/) || [])[1];
+    const body = off ? { on: false } : { on: true, ...(col ? { color: COLORS[col] } : {}), ...(pct ? { brightness: Number(pct) } : {}) };
+    const results = await Promise.allSettled(which.map((l) => setLight(l, body)));
+    return res.json({ did: `${off ? "Turning off" : "Setting"} ${which.length === lights.length ? "all lights" : which.map((l) => l.name).join(", ")}${col ? " to " + col : ""}`,
+      results: results.map((r, i) => ({ id: which[i].id, name: which[i].name, ok: r.status === "fulfilled", error: r.reason && r.reason.message })) });
+  }
+  // 1c. Sonos ("sonos volume 30", "pause the music", "group all speakers")
+  if (/\b(sonos|music|speaker|speakers)\b/.test(text)) {
+    const groups = await sonosState();
+    if (/\bgroup\b.*\b(all|every)/.test(text) || /\b(all|every)\b.*\bgroup/.test(text)) {
+      const into = groups[0];
+      for (const g of groups.slice(1)) for (const m of g.members) await sonosSoap(m.ip, "AVTransport", "SetAVTransportURI", { InstanceID: 0, CurrentURI: `x-rincon:${into.coordinator.uuid}`, CurrentURIMetaData: "" }).catch(() => {});
+      return res.json({ did: "Grouping all speakers", results: [] });
+    }
+    const g = groups.find((x) => x.members.some((m) => text.includes(norm(m.name)))) || groups[0];
+    if (!g) return res.status(400).json({ error: "No Sonos speakers found." });
+    const v = (text.match(/\b(\d{1,3})\b/) || [])[1];
+    if (/\bvolume\b/.test(text) && v) { await sonosGroupVolume(g.coordinator.ip, v); return res.json({ did: `${g.name} volume ${v}`, results: [] }); }
+    if (/\b(louder|volume up|turn it up)\b/.test(text)) { await sonosGroupVolume(g.coordinator.ip, (g.volume || 0) + 8); return res.json({ did: `${g.name} louder`, results: [] }); }
+    if (/\b(quieter|softer|volume down|turn it down)\b/.test(text)) { await sonosGroupVolume(g.coordinator.ip, (g.volume || 0) - 8); return res.json({ did: `${g.name} quieter`, results: [] }); }
+    if (/\b(pause|stop)\b/.test(text)) { await sonosSoap(g.coordinator.ip, "AVTransport", "Pause", { InstanceID: 0 }); return res.json({ did: `Paused ${g.name}`, results: [] }); }
+    if (/\b(play|resume)\b/.test(text)) { await sonosSoap(g.coordinator.ip, "AVTransport", "Play", { InstanceID: 0, Speed: 1 }); return res.json({ did: `Playing ${g.name}`, results: [] }); }
+    if (/\b(skip|next)\b/.test(text)) { await sonosSoap(g.coordinator.ip, "AVTransport", "Next", { InstanceID: 0 }); return res.json({ did: `Next on ${g.name}`, results: [] }); }
+  }
   const ids = matchTvs(text, fallback);
   const names = (list) => (list.length === tvs.length && list.length > 1 ? "all TVs" : list.map((id) => findTv(id).name).join(", "));
   // 2. app on TV ("put espn on the hisense", "netflix on the roku ultra")
