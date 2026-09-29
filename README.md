@@ -103,3 +103,19 @@ The Speakers section finds your Sonos speakers on its own. You can play, pause a
 Tap Find in the Lights section. Your lights' names from the MagicLight app can't be read over the local network, so each light shows up as "Light" plus the last 6 characters of its MAC address. Tap ⋯, tap Blink it to see which light flashes, then rename it. Tapping a light's tile turns it on or off. Lights that are offline in the MagicLight app will show as offline here too.
 
 Voice/typed examples: "lights off", "window light blue", "bottom clouds 50%", "Sonos volume 30", "pause the music", "group all speakers".
+
+
+## Music on Sonos and Spotify
+Each speaker group shows the album art, a progress bar you can drag, Shuffle/Repeat, and a **Music** button:
+- **Favorites**: your Sonos favorites (Spotify playlists, radio stations, anything you've saved in the Sonos app). Tap to play now, or use Next / + Queue.
+- **Spotify**: paste any Spotify share link to play it (no setup needed). To search, connect a Spotify developer app (steps are shown in the app; the owner needs Premium, and the login has to be done once on the PC at http://127.0.0.1:3000).
+- **Playlists**: saved Sonos playlists.
+- **Queue**: see what's up next, jump to a song, remove songs, clear.
+Once Spotify is connected, a Spotify card at the top of Speakers shows what your account is playing on any device (phone, PC, Sonos), with controls, volume and "Play on" to move it.
+Voice/typed: "play Harvest Moon on the TV Room", "play my Chill Vibes playlist", "play <a Sonos favorite>".
+
+
+## Lights to the music
+Lights → **Music sync**. The iPad (or PC) microphone listens to the room and flashes the chosen lights on the beat, like the MagicLight app's Music tab. Effects: Color jump, Pulse (one color), Rainbow, Strobe; adjust Sensitivity if it misses beats or flashes too much. When you stop, each light goes back to how it was.
+The mic only works on a secure page. The hub also runs one at **https://192.168.1.40:3443** (port = app port + 443). Open it on the iPad, accept the "not private" warning once (it's your own PC's self-made certificate), and add that page to the Home Screen. That also makes the voice-command mic button work.
+No mic? Tap the "Tap here on the beat" button a few times and the lights keep that tempo.

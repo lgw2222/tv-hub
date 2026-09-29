@@ -197,6 +197,55 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 .checks label{display:flex;align-items:center;gap:10px;padding:10px 4px;font-size:17px;border-bottom:1px solid var(--line)}
 .checks input{width:22px;height:22px}
 
+
+/* now playing + music browser */
+.np{display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;align-items:center;margin:10px 0 6px}
+.np img,.np .noart{width:64px;height:64px;border-radius:10px;object-fit:cover;background:var(--key-lo)}
+.np .t{font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.np .a{font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prog{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.modes{display:flex;gap:6px;align-items:center;margin:4px 0 2px;flex-wrap:wrap}
+.modes button{font-size:13px;font-weight:600;background:var(--key-lo);padding:6px 10px;border-radius:9px;color:var(--muted)}
+.modes button[aria-pressed="true"]{background:var(--gtv);color:#fff}
+.modes .grow{flex:1}
+.modes .music{background:var(--ink);color:var(--shell)}
+.tabs{display:flex;gap:4px;background:var(--key-lo);border-radius:12px;padding:4px;margin-bottom:12px}
+.tabs button{flex:1;padding:9px 4px;border-radius:9px;font-weight:600;font-size:15px;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--key-hi);color:var(--ink)}
+.mlist{display:flex;flex-direction:column;gap:2px}
+.mrow{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px 4px;border-radius:10px;text-align:left;width:100%}
+.mrow:active{background:var(--key-lo)}
+.mrow img,.mrow .noart{width:44px;height:44px;border-radius:8px;object-fit:cover;background:var(--key-lo)}
+.mrow .t{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mrow .a{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mrow.cur .t{color:var(--gtv)}
+.mrow .acts{display:flex;gap:4px}
+.mrow .acts span{font-size:12px;font-weight:700;background:var(--key-lo);padding:6px 8px;border-radius:8px;color:var(--muted)}
+.mhead{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:14px 4px 4px}
+.srow{display:flex;gap:8px;margin-bottom:6px}
+.srow input{flex:1;min-width:0}
+.spcard{background:var(--key);border-radius:16px;padding:12px;margin-bottom:10px;border-left:4px solid #1db954}
+.spcard select{width:100%;margin-top:8px}
+.steps-list{margin:6px 0 10px 20px;padding:0;font-size:15px;line-height:1.5}
+.steps-list code{background:var(--key-lo);padding:1px 5px;border-radius:5px;font-size:13px;user-select:all;-webkit-user-select:all}
+#mSheet .panel{max-height:90%}
+
+
+/* light music sync */
+.seg2{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.seg2 button{background:var(--key-lo);border-radius:10px;padding:10px 4px;font-weight:600;font-size:14px;color:var(--muted)}
+.seg2 button[aria-pressed="true"]{background:var(--gtv);color:#fff}
+.meter{height:54px;border-radius:12px;background:var(--key-lo);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:var(--muted)}
+.meter .fill{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,var(--gtv),#b36bff);opacity:.55;transition:width .06s linear}
+.meter span{position:relative}
+.meter.beat{box-shadow:inset 0 0 0 3px #fff}
+.lchecks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 10px}
+.lchecks label{display:flex;align-items:center;gap:8px;font-size:15px;padding:6px 2px;min-width:0}
+.lchecks input{width:20px;height:20px;flex:0 0 auto}
+.bigbtn{width:100%;padding:16px;font-size:18px}
+.warnbox{background:var(--key-lo);border-radius:12px;padding:12px;font-size:14px;line-height:1.45}
+.warnbox a{color:var(--gtv);font-weight:700}
+
 /* presets */
 .presets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}
 .preset{background:var(--key);border-radius:14px;padding:14px 12px;text-align:left;font-weight:700;font-size:17px;
@@ -304,11 +353,12 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 
   <section class="a-sonos">
     <div class="sechead"><h2>Speakers</h2><div class="mini"><button id="sGroupAll">Group all</button><button id="sRefresh">Refresh</button></div></div>
+    <div id="spNow"></div>
     <div id="sonos"><div class="empty">Looking for Sonos speakers…</div></div>
   </section>
 
   <section class="a-lights">
-    <div class="sechead"><h2>Lights</h2><div class="mini"><button id="lAllOn">All on</button><button id="lAllOff">All off</button><button id="lScan">Find</button></div></div>
+    <div class="sechead"><h2>Lights</h2><div class="mini"><button id="lMusic">Music sync</button><button id="lAllOn">All on</button><button id="lAllOff">All off</button><button id="lScan">Find</button></div></div>
     <div class="lights" id="lights"><div class="empty">Tap Find to look for your MagicLight lights.</div></div>
   </section>
 
@@ -325,6 +375,20 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
   </div>
 </div>
 
+<!-- Music browser -->
+<div class="sheet" id="mSheet" aria-hidden="true">
+  <div class="panel" role="dialog" aria-label="Music">
+    <div class="panel-head"><h3 id="mTitle">Music</h3><button class="btn ghost" id="mClose">Done</button></div>
+    <div class="tabs" role="tablist">
+      <button role="tab" data-mt="fav" aria-selected="true">Favorites</button>
+      <button role="tab" data-mt="spotify">Spotify</button>
+      <button role="tab" data-mt="lists">Playlists</button>
+      <button role="tab" data-mt="queue">Queue</button>
+    </div>
+    <div id="mBody"></div>
+  </div>
+</div>
+
 <!-- Sonos group editor -->
 <div class="sheet" id="gSheet" aria-hidden="true">
   <div class="panel" role="dialog" aria-label="Group speakers">
@@ -333,6 +397,29 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
       <p class="hint">Check the speakers that should play together. Unchecked speakers go back to playing on their own.</p>
       <div class="checks" id="gChecks"></div>
       <div class="actions"><button class="btn" id="gSave">Done</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Light music sync -->
+<div class="sheet" id="xSheet" aria-hidden="true">
+  <div class="panel" role="dialog" aria-label="Music sync">
+    <div class="panel-head"><h3>Lights to the music</h3><button class="btn ghost" id="xClose">Done</button></div>
+    <div class="form">
+      <div id="xSecure"></div>
+      <p class="hint">This device's microphone listens to the room (like the MagicLight app's Music tab) and flashes the lights on the beat. Keep this screen open near the speakers while it runs.</p>
+      <label>Effect</label>
+      <div class="seg2" id="xFx">
+        <button data-fx="jump" aria-pressed="true">Color jump</button><button data-fx="pulse" aria-pressed="false">Pulse</button><button data-fx="rainbow" aria-pressed="false">Rainbow</button><button data-fx="strobe" aria-pressed="false">Strobe</button>
+      </div>
+      <div id="xColorWrap" hidden><label>Pulse color</label><div class="swatches" id="xSwatches"></div></div>
+      <label>Sensitivity <span id="xSensVal"></span><input type="range" id="xSens" min="0" max="100" value="60"></label>
+      <div class="meter" id="xMeter"><div class="fill"></div><span id="xStatus">Not listening</span></div>
+      <button class="btn bigbtn" id="xGo">Start listening</button>
+      <label>No mic? Tap along to the beat instead</label>
+      <button class="btn ghost bigbtn" id="xTap">Tap here on the beat</button>
+      <label>Lights</label>
+      <div class="lchecks" id="xLights"></div>
     </div>
   </div>
 </div>
@@ -922,12 +1009,18 @@ function renderSonos() {
   if (!sonosGroups.length) { box.innerHTML = '<div class="empty">No Sonos speakers found.</div>'; return; }
   box.innerHTML = sonosGroups.map((g) => {
     const playing = /PLAYING|TRANSITIONING/.test(g.state || "");
-    const np = g.title ? `${g.title}${g.artist ? " · " + g.artist : ""}` : (playing ? "Playing" : "Nothing playing");
-    const multi = g.members.length > 1;
+        const multi = g.members.length > 1;
+    const shuffle = /SHUFFLE/.test(g.playMode || ""), rep = /REPEAT_ONE/.test(g.playMode || "") ? "one" : /REPEAT_ALL|^SHUFFLE$/.test(g.playMode || "") ? "all" : "off";
+    const art = g.art ? `<img src="${escH(g.art)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'noart'}))">` : '<div class="noart"></div>';
     return `<div class="sgroup" data-g="${escH(g.id)}">
       <div class="sg-top"><div class="sg-name">${escH(g.name)}</div>
         <div class="sg-tr"><button data-tr="previous" aria-label="Previous">${ICON.prev}</button><button data-tr="toggle" aria-label="${playing ? "Pause" : "Play"}">${playing ? ICON.pause : ICON.play}</button><button data-tr="next" aria-label="Next">${ICON.next}</button></div></div>
-      <div class="sg-np">${escH(np)}</div>
+      <div class="np">${art}<div style="min-width:0"><div class="t">${escH(g.title || (playing ? "Playing" : "Nothing playing"))}</div><div class="a">${escH([g.artist, g.album].filter(Boolean).join(" · "))}</div></div></div>
+      ${g.duration > 0 ? `<div class="prog"><span class="pc">${fmtT(g.position)}</span><input type="range" class="seek" min="0" max="${g.duration}" value="${g.position}" style="--p:${(g.position / g.duration) * 100}%" data-seek="${escH(g.id)}" aria-label="Song position"><span>${fmtT(g.duration)}</span></div>` : ""}
+      <div class="modes">
+        ${g.isQueue ? `<button data-shuffle="${shuffle ? 0 : 1}" data-rep="${rep}" aria-pressed="${shuffle}">Shuffle</button><button data-repeat="${rep}" data-sh="${shuffle ? 1 : 0}" aria-pressed="${rep !== "off"}">${rep === "one" ? "Repeat 1" : "Repeat"}</button>` : ""}
+        <span class="grow"></span><button class="music" data-music="${escH(g.id)}">Music</button>
+      </div>
       ${multi ? volRow("Group volume", g.volume, g.members.every((m) => m.muted), `data-group="${escH(g.id)}"`, true) : ""}
       ${g.members.map((m) => volRow(multi ? m.name : "Volume", m.volume, m.muted, `data-uuid="${escH(m.uuid)}"`)).join("")}
       <div class="mini" style="justify-content:flex-end;padding:4px 0"><button data-edit="${escH(g.id)}">${multi ? "Change group" : "Group with…"}</button></div>
@@ -937,6 +1030,7 @@ function renderSonos() {
 const sendVol = {};
 $("#sonos").addEventListener("input", (e) => {
   const r = e.target; if (r.type !== "range") return;
+  if (r.dataset.seek) { sonosBusyUntil = Date.now() + 2500; r.style.setProperty("--p", (r.value / r.max) * 100 + "%"); r.closest(".prog").querySelector(".pc").textContent = fmtT(r.value); return; }
   sonosBusyUntil = Date.now() + 2500;
   r.style.setProperty("--p", r.value + "%"); r.closest(".vrow").querySelector(".vv").textContent = r.value;
   const key = r.dataset.group || r.dataset.uuid;
@@ -949,6 +1043,9 @@ $("#sonos").addEventListener("click", async (e) => {
   const gid = b.closest(".sgroup")?.dataset.g;
   try {
     if (b.dataset.tr) { await api("/api/sonos/transport", { method: "POST", body: { group: gid, action: b.dataset.tr } }); setTimeout(() => loadSonos(), 700); }
+    else if (b.dataset.shuffle !== undefined) { await api("/api/sonos/playmode", { method: "POST", body: { group: gid, shuffle: b.dataset.shuffle === "1", repeat: b.dataset.rep } }); loadSonos(); }
+    else if (b.dataset.repeat !== undefined) { const nx = { off: "all", all: "one", one: "off" }[b.dataset.repeat]; await api("/api/sonos/playmode", { method: "POST", body: { group: gid, shuffle: b.dataset.sh === "1", repeat: nx } }); loadSonos(); }
+    else if (b.dataset.music) openMusic(b.dataset.music);
     else if (b.classList.contains("mute")) {
       const m = b.getAttribute("aria-pressed") !== "true";
       await api("/api/sonos/mute", { method: "POST", body: { group: b.dataset.group, uuid: b.dataset.uuid, mute: m } }); loadSonos();
@@ -1053,6 +1150,278 @@ $("#lDelete").onclick = async () => {
 loadSonos(); loadLights();
 setInterval(() => { if (!document.hidden) { loadSonos(); } }, 10000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) { loadSonos(); loadLights(); } });
+
+
+// ---------- now playing ticker, music browser, Spotify ----------
+const fmtT = (n) => { n = Math.max(0, Math.round(Number(n) || 0)); const h = Math.floor(n / 3600), m = Math.floor(n / 60) % 60, sec = String(n % 60).padStart(2, "0"); return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`; };
+$("#sonos").addEventListener("change", async (e) => {
+  const r = e.target; if (!r.dataset.seek) return;
+  try { await api("/api/sonos/seek", { method: "POST", body: { group: r.dataset.seek, seconds: Number(r.value) } }); } catch (err) { toast(err.message, true); }
+  sonosBusyUntil = 0; setTimeout(() => loadSonos(), 500);
+});
+setInterval(() => { // move progress bars between refreshes
+  if (Date.now() < sonosBusyUntil) return;
+  for (const g of sonosGroups) {
+    if (!/PLAYING/.test(g.state || "") || !(g.duration > 0)) continue;
+    g.position = Math.min(g.duration, (g.position || 0) + 1);
+    const r = document.querySelector(`.sgroup[data-g="${CSS.escape(g.id)}"] .seek`);
+    if (r) { r.value = g.position; r.style.setProperty("--p", (g.position / g.duration) * 100 + "%"); r.closest(".prog").querySelector(".pc").textContent = fmtT(g.position); }
+  }
+}, 1000);
+
+let musicGroup = null, musicTab = "fav", spInfo = { connected: false }, spSearchT;
+const artImg = (u) => (u ? `<img src="${escH(u)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'noart'}))">` : '<div class="noart"></div>');
+const ACTS = '<span class="acts"><span data-mode="next">Next</span><span data-mode="add">+ Queue</span></span>';
+function openMusic(gid) {
+  musicGroup = gid; const g = sonosGroups.find((x) => x.id === gid);
+  $("#mTitle").textContent = g ? `Play on ${g.name}` : "Music";
+  $("#mSheet").classList.add("open"); $("#mSheet").setAttribute("aria-hidden", "false");
+  showTab(musicTab);
+}
+function closeMusic() { $("#mSheet").classList.remove("open"); $("#mSheet").setAttribute("aria-hidden", "true"); setTimeout(() => loadSonos(), 300); }
+$("#mClose").onclick = closeMusic;
+$("#mSheet").addEventListener("click", (e) => { if (e.target.id === "mSheet") closeMusic(); });
+document.querySelectorAll("[data-mt]").forEach((b) => (b.onclick = () => showTab(b.dataset.mt)));
+function showTab(t) {
+  musicTab = t;
+  document.querySelectorAll("[data-mt]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.mt === t)));
+  const body = $("#mBody"); body.innerHTML = '<div class="empty">Loading…</div>';
+  ({ fav: tabSonosList.bind(null, "favorites"), lists: tabSonosList.bind(null, "playlists"), queue: tabQueue, spotify: tabSpotify })[t]();
+}
+async function tabSonosList(kind) {
+  try {
+    const r = await api(`/api/sonos/${kind}`);
+    if (!r.items.length) { $("#mBody").innerHTML = `<div class="empty">${kind === "favorites" ? "No Sonos favorites yet. In the Sonos app, tap ⋯ on a song, playlist or station and choose Add to My Sonos / Favorites, and it shows up here." : "No saved Sonos playlists."}</div>`; return; }
+    $("#mBody").innerHTML = `<div class="mlist">${r.items.map((it, i) => `<button class="mrow" data-src="${kind}" data-i="${i}">${artImg(it.art)}<span style="min-width:0"><div class="t">${escH(it.title)}</div><div class="a">${escH(it.artist || it.album || "")}</div></span>${/radio|stream|hls|htastream/i.test(it.uri) ? "" : ACTS}</button>`).join("")}</div>`;
+  } catch (e) { $("#mBody").innerHTML = `<div class="empty">${escH(e.message)}</div>`; }
+}
+async function tabQueue() {
+  try {
+    const r = await api(`/api/sonos/queue?group=${encodeURIComponent(musicGroup)}`);
+    if (!r.items.length) { $("#mBody").innerHTML = '<div class="empty">The queue is empty. Pick something from Favorites or Spotify.</div>'; return; }
+    $("#mBody").innerHTML = `<div class="mini" style="justify-content:flex-end;margin-bottom:6px"><button id="qClear">Clear queue</button></div><div class="mlist">${r.items.map((it, i) => `<button class="mrow${r.current === i + 1 ? " cur" : ""}" data-q="${i + 1}">${artImg(it.art)}<span style="min-width:0"><div class="t">${i + 1}. ${escH(it.title)}</div><div class="a">${escH(it.artist || "")}</div></span><span class="acts"><span data-qrm="${i + 1}">Remove</span></span></button>`).join("")}</div>`;
+    $("#qClear").onclick = async () => { await api("/api/sonos/queue/clear", { method: "POST", body: { group: musicGroup } }).catch((e) => toast(e.message, true)); tabQueue(); };
+    const cur = $("#mBody").querySelector(".cur"); if (cur) cur.scrollIntoView({ block: "center" });
+  } catch (e) { $("#mBody").innerHTML = `<div class="empty">${escH(e.message)}</div>`; }
+}
+async function tabSpotify() {
+  try { spInfo = await api("/api/spotify"); } catch {}
+  const link = `<div class="mhead">Paste a Spotify link</div><div class="srow"><input id="spLink" placeholder="https://open.spotify.com/…" autocomplete="off"><button class="btn" id="spLinkGo">Play</button></div>`;
+  if (!spInfo.connected) {
+    const onPc = ["127.0.0.1", "localhost"].includes(location.hostname);
+    $("#mBody").innerHTML = `${link}<p class="hint">Works with no setup: in Spotify tap Share → Copy link on any song, album or playlist, paste it here. (Spotify has to be added in the Sonos app.)</p>
+      <div class="mhead">Connect Spotify to search</div>
+      <p class="hint">One-time setup, done on your PC. Spotify requires the account to have Premium.</p>
+      <ol class="steps-list">
+        <li>Go to <b>developer.spotify.com/dashboard</b>, log in, tap <b>Create app</b>.</li>
+        <li>Name: <code>TV Remote Hub</code>. Redirect URI: <code>${escH(spInfo.redirect || "")}</code> (tap Add). Check <b>Web API</b>, agree, Save.</li>
+        <li>Copy the <b>Client ID</b> and paste it here:</li>
+      </ol>
+      <div class="srow"><input id="spId" placeholder="Client ID" value="${escH(spInfo.clientId || "")}" autocomplete="off"><button class="btn ghost" id="spSave">Save</button></div>
+      ${spInfo.clientId ? (onPc ? `<a class="btn" style="display:block;text-align:center;text-decoration:none;margin-top:8px" href="/api/spotify/login">Log in with Spotify</a>` : `<p class="hint">Last step: on your PC, open <code>http://127.0.0.1:${location.port || 80}</code>, open Music → Spotify, and tap Log in with Spotify. Spotify only allows that login from the PC itself. After that it works on the iPad too.</p>`) : ""}`;
+    $("#spSave").onclick = async () => { try { await api("/api/spotify/setup", { method: "POST", body: { clientId: $("#spId").value } }); toast("Saved"); tabSpotify(); } catch (e) { toast(e.message, true); } };
+  } else {
+    $("#mBody").innerHTML = `<div class="srow"><input id="spQ" placeholder="Search songs, albums, playlists" autocomplete="off" enterkeyhint="search"></div><div id="spRes"></div>${link}
+      <p class="hint" style="margin-top:14px">Connected as ${escH(spInfo.user || "you")}. <a href="#" id="spOut" style="color:var(--muted)">Disconnect</a></p>`;
+    $("#spQ").addEventListener("input", () => { clearTimeout(spSearchT); spSearchT = setTimeout(spSearch, 400); });
+    $("#spOut").onclick = async (e) => { e.preventDefault(); if (!confirm("Disconnect Spotify?")) return; await api("/api/spotify/logout", { method: "POST" }); tabSpotify(); };
+    spHome();
+  }
+  $("#spLinkGo").onclick = () => playSpotify($("#spLink").value, "now");
+}
+const spRows = (list) => list.map((x) => `<button class="mrow" data-sp="${escH(x.uri)}" data-title="${escH(x.name)}">${artImg(x.art)}<span style="min-width:0"><div class="t">${escH(x.name)}</div><div class="a">${escH(x.sub || x.type)}</div></span>${ACTS}</button>`).join("");
+async function spHome() {
+  const box = $("#spRes"); box.innerHTML = '<div class="empty">Loading your playlists…</div>';
+  try {
+    const [pl, rc] = await Promise.all([api("/api/spotify/playlists"), api("/api/spotify/recent").catch(() => ({ tracks: [] }))]);
+    box.innerHTML = (rc.tracks.length ? `<div class="mhead">Recently played</div><div class="mlist">${spRows(rc.tracks.slice(0, 6))}</div>` : "") + `<div class="mhead">Your playlists</div><div class="mlist">${spRows(pl.playlists) || '<div class="empty">No playlists</div>'}</div>`;
+  } catch (e) { box.innerHTML = `<div class="empty">${escH(e.message)}</div>`; }
+}
+async function spSearch() {
+  const q = $("#spQ").value.trim(); if (!q) return spHome();
+  const box = $("#spRes");
+  try {
+    const r = await api(`/api/spotify/search?q=${encodeURIComponent(q)}`);
+    box.innerHTML = [["Songs", r.tracks], ["Albums", r.albums], ["Playlists", r.playlists]].filter(([, l]) => l.length).map(([h, l]) => `<div class="mhead">${h}</div><div class="mlist">${spRows(l)}</div>`).join("") || '<div class="empty">Nothing found</div>';
+  } catch (e) { box.innerHTML = `<div class="empty">${escH(e.message)}</div>`; }
+}
+async function playSpotify(link, mode, title) {
+  if (!link) return; buzz();
+  try { const r = await api("/api/sonos/spotify", { method: "POST", body: { group: musicGroup, link, mode, title } }); toast(r.did); setTimeout(() => loadSonos(), 1200); }
+  catch (e) { toast(e.message, true); }
+}
+$("#mBody").addEventListener("click", async (e) => {
+  const row = e.target.closest(".mrow"); if (!row) return;
+  const mode = e.target.closest("[data-mode]")?.dataset.mode || "now";
+  buzz();
+  try {
+    if (row.dataset.sp) return playSpotify(row.dataset.sp, mode, row.dataset.title);
+    if (row.dataset.src) { const r = await api("/api/sonos/play-item", { method: "POST", body: { group: musicGroup, source: row.dataset.src, index: Number(row.dataset.i), mode } }); toast(r.did); setTimeout(() => loadSonos(), 1200); return; }
+    const rm = e.target.closest("[data-qrm]");
+    if (rm) { await api("/api/sonos/queue/remove", { method: "POST", body: { group: musicGroup, track: Number(rm.dataset.qrm) } }); return tabQueue(); }
+    if (row.dataset.q) { await api("/api/sonos/queue/jump", { method: "POST", body: { group: musicGroup, track: Number(row.dataset.q) } }); setTimeout(tabQueue, 600); setTimeout(() => loadSonos(), 800); }
+  } catch (err) { toast(err.message, true); }
+});
+
+// Spotify Connect: whatever your Spotify account is playing (phone, PC, Sonos…)
+let spPlayer = null;
+async function loadSpotifyNow() {
+  try { spInfo = await api("/api/spotify"); } catch { return; }
+  const box = $("#spNow");
+  if (!spInfo.connected) { box.innerHTML = ""; return; }
+  try { spPlayer = await api("/api/spotify/player"); } catch { box.innerHTML = ""; return; }
+  const p = spPlayer;
+  if (!p.track && !p.devices.length) { box.innerHTML = ""; return; }
+  box.innerHTML = `<div class="spcard">
+    <div class="sg-top"><div class="sg-name">Spotify${p.device ? " · " + escH(p.device.name) : ""}</div>
+      <div class="sg-tr"><button data-sc="previous" aria-label="Previous">${ICON.prev}</button><button data-sc="${p.playing ? "pause" : "play"}" aria-label="${p.playing ? "Pause" : "Play"}">${p.playing ? ICON.pause : ICON.play}</button><button data-sc="next" aria-label="Next">${ICON.next}</button></div></div>
+    ${p.track ? `<div class="np">${artImg(p.track.art)}<div style="min-width:0"><div class="t">${escH(p.track.name)}</div><div class="a">${escH(p.track.sub)}</div></div></div>` : '<div class="sg-np">Nothing playing</div>'}
+    ${p.device && p.device.volume != null ? volRow("Spotify volume", p.device.volume, false, 'data-spvol="1"').replace(/<button class="mute"[\s\S]*?<\/button>/, "") : ""}
+    <select id="spDev" aria-label="Play Spotify on">${p.devices.length ? p.devices.map((d) => `<option value="${escH(d.id)}" ${d.active ? "selected" : ""}>Play on: ${escH(d.name)}</option>`).join("") : "<option>No devices online</option>"}</select>
+  </div>`;
+}
+$("#spNow").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-sc]"); if (!b) return; buzz();
+  try { await api("/api/spotify/control", { method: "POST", body: { action: b.dataset.sc } }); setTimeout(loadSpotifyNow, 600); } catch (err) { toast(err.message, true); }
+});
+let spVolT;
+$("#spNow").addEventListener("input", (e) => {
+  const r = e.target; if (!r.dataset.spvol) return;
+  r.style.setProperty("--p", r.value + "%"); r.closest(".vrow").querySelector(".vv").textContent = r.value;
+  clearTimeout(spVolT); spVolT = setTimeout(() => api("/api/spotify/control", { method: "POST", body: { action: "volume", volume: Number(r.value) } }).catch((err) => toast(err.message, true)), 250);
+});
+$("#spNow").addEventListener("change", async (e) => {
+  if (e.target.id !== "spDev" || !e.target.value) return;
+  try { await api("/api/spotify/control", { method: "POST", body: { action: "transfer", device: e.target.value } }); toast("Moved Spotify"); setTimeout(loadSpotifyNow, 1200); } catch (err) { toast(err.message, true); }
+});
+loadSpotifyNow();
+setInterval(() => { if (!document.hidden && !document.querySelector(".sheet.open")) loadSpotifyNow(); }, 15000);
+
+
+// ---------- lights to the music ----------
+const X = { fx: "jump", color: "#ff0040", sens: 60, running: false, src: null, before: [], ids: [], hue: 0, env: 0, hist: [], lastBeat: 0, lastSend: 0, inflight: 0, taps: [], tapBpm: 0, tapPhase: 0, wake: null, raf: 0, ctx: null, stream: null, analyser: null, bins: null, beatOn: 0, beats: [], flashUntil: 0 };
+try { Object.assign(X, JSON.parse(localStorage.getItem("musicSync") || "{}"), { running: false, taps: [], beats: [], hist: [] }); } catch {}
+const saveX = () => { try { localStorage.setItem("musicSync", JSON.stringify({ fx: X.fx, color: X.color, sens: X.sens, ids: X.ids })); } catch {} };
+function hsv(h, s, v) { h = ((h % 360) + 360) % 360 / 60; const c = v * s, x = c * (1 - Math.abs((h % 2) - 1)), m = v - c; const [r, g, b] = h < 1 ? [c, x, 0] : h < 2 ? [x, c, 0] : h < 3 ? [0, c, x] : h < 4 ? [0, x, c] : h < 5 ? [x, 0, c] : [c, 0, x]; return "#" + [r, g, b].map((n) => Math.round((n + m) * 255).toString(16).padStart(2, "0")).join(""); }
+const hexScale = (hex, k) => { const n = parseInt(hex.slice(1), 16); return "#" + [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.round(v * k).toString(16).padStart(2, "0")).join(""); };
+async function openMusicSync() {
+  const online = lightList.filter((l) => l.online);
+  if (!X.ids.length) X.ids = online.map((l) => l.id);
+  $("#xLights").innerHTML = lightList.map((l) => `<label><input type="checkbox" value="${escH(l.id)}" ${X.ids.includes(l.id) && l.online ? "checked" : ""} ${l.online ? "" : "disabled"}> <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escH(l.name)}${l.online ? "" : " (offline)"}</span></label>`).join("") || '<div class="empty">Tap Find in Lights first.</div>';
+  $("#xSwatches").innerHTML = ["#ff0040", "#ff0000", "#ff6a00", "#ffd000", "#00ff00", "#00ffff", "#0060ff", "#8000ff", "#ff00ff", "#ffffff"].map((c) => `<button style="background:${c}" data-c="${c}" aria-label="${c}"></button>`).join("");
+  document.querySelectorAll("#xFx button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.fx === X.fx)));
+  $("#xColorWrap").hidden = X.fx !== "pulse";
+  $("#xSens").value = X.sens; $("#xSens").style.setProperty("--p", X.sens + "%"); $("#xSensVal").textContent = X.sens + "%";
+  const sec = $("#xSecure");
+  if (!window.isSecureContext) {
+    let port = 3443; try { const r = await api("/api/secure"); port = r.port; } catch {}
+    const url = `https://${location.hostname}:${port}/`;
+    sec.innerHTML = `<div class="warnbox">Browsers only let a page use the microphone on a secure (https) address. <a href="${url}">Open the secure version</a>. The first time, Safari shows "This connection is not private": tap <b>Show Details</b>, then <b>visit this website</b>, then Visit Website. It's your own PC, so that's safe. Then add that page to your Home Screen instead of this one. (Tap-along works right here without it.)</div>`;
+  } else sec.innerHTML = "";
+  $("#xSheet").classList.add("open"); $("#xSheet").setAttribute("aria-hidden", "false");
+}
+$("#lMusic").onclick = () => { buzz(); openMusicSync(); };
+$("#xClose").onclick = () => { $("#xSheet").classList.remove("open"); $("#xSheet").setAttribute("aria-hidden", "true"); };
+$("#xSheet").addEventListener("click", (e) => { if (e.target.id === "xSheet") $("#xClose").onclick(); });
+$("#xFx").onclick = (e) => { const b = e.target.closest("[data-fx]"); if (!b) return; X.fx = b.dataset.fx; saveX(); document.querySelectorAll("#xFx button").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); $("#xColorWrap").hidden = X.fx !== "pulse"; };
+$("#xSwatches").onclick = (e) => { if (e.target.dataset.c) { X.color = e.target.dataset.c; saveX(); buzz(); } };
+$("#xSens").oninput = (e) => { X.sens = Number(e.target.value); $("#xSensVal").textContent = X.sens + "%"; e.target.style.setProperty("--p", X.sens + "%"); saveX(); };
+$("#xLights").onchange = () => { X.ids = [...$("#xLights").querySelectorAll("input:checked")].map((i) => i.value); saveX(); };
+
+async function beginSync(src) {
+  X.ids = [...$("#xLights").querySelectorAll("input:checked")].map((i) => i.value); saveX();
+  if (!X.ids.length) { toast("Pick at least one light", true); return false; }
+  try { const r = await api("/api/lights/stream/start", { method: "POST", body: { ids: X.ids } }); X.before = r.before || []; } catch (e) { toast(e.message, true); return false; }
+  X.running = true; X.src = src; X.hist = []; X.env = 0;
+  try { X.wake = await navigator.wakeLock?.request("screen"); } catch {}
+  cancelAnimationFrame(X.raf); X.raf = requestAnimationFrame(syncFrame);
+  return true;
+}
+async function stopSync() {
+  X.running = false; cancelAnimationFrame(X.raf);
+  if (X.stream) { X.stream.getTracks().forEach((t) => t.stop()); X.stream = null; }
+  if (X.ctx) { X.ctx.close().catch(() => {}); X.ctx = null; }
+  try { await X.wake?.release(); } catch {} X.wake = null;
+  X.tapBpm = 0; X.taps = []; X.src = null;
+  $("#xGo").textContent = "Start listening"; $("#xTap").textContent = "Tap here on the beat";
+  $("#xStatus").textContent = "Not listening"; $("#xMeter .fill").style.width = "0";
+  await api("/api/lights/stream/stop", { method: "POST", body: { before: X.before } }).catch(() => {});
+  setTimeout(loadLights, 500);
+}
+$("#xGo").onclick = async () => {
+  buzz();
+  if (X.running && X.src === "mic") return stopSync();
+  if (X.running) await stopSync();
+  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) { toast("The mic needs the secure version of this page. Use the link above, or tap along instead.", true); return; }
+  try {
+    X.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  } catch (e) { toast("Couldn't use the microphone. Allow mic access for this page in Settings.", true); return; }
+  X.ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const srcNode = X.ctx.createMediaStreamSource(X.stream);
+  X.analyser = X.ctx.createAnalyser(); X.analyser.fftSize = 1024; X.analyser.smoothingTimeConstant = 0.35;
+  srcNode.connect(X.analyser); X.bins = new Uint8Array(X.analyser.frequencyBinCount);
+  if (await beginSync("mic")) { $("#xGo").textContent = "Stop"; $("#xStatus").textContent = "Listening…"; }
+  else { X.stream.getTracks().forEach((t) => t.stop()); X.stream = null; }
+};
+$("#xTap").onclick = async () => {
+  buzz();
+  const now = performance.now();
+  if (X.running && X.src === "mic") { toast("Stop the mic first to use tap-along", true); return; }
+  X.taps = X.taps.filter((t) => now - t < 3000); X.taps.push(now);
+  if (X.taps.length >= 2) {
+    const gaps = X.taps.slice(1).map((t, i) => t - X.taps[i]).slice(-6);
+    X.tapBpm = 60000 / (gaps.reduce((a, b) => a + b, 0) / gaps.length); X.tapPhase = now;
+    if (!X.running) await beginSync("tap");
+    $("#xTap").textContent = `${Math.round(X.tapBpm)} BPM · tap to adjust`;
+    $("#xGo").textContent = "Stop"; $("#xGo").onclickTap = true;
+  } else $("#xTap").textContent = "Keep tapping…";
+  X.lastBeat = 0; onBeat(now);
+};
+// "Stop" also ends tap mode
+$("#xGo").addEventListener("click", () => { if (X.running && X.src === "tap") stopSync(); }, true);
+
+function onBeat(now) {
+  X.lastBeat = now; X.env = 1; X.beats.push(now); X.beats = X.beats.filter((t) => now - t < 8000);
+  X.hue = (X.hue + 97 + Math.random() * 40) % 360; X.flashUntil = now + 70;
+  const m = $("#xMeter"); m.classList.add("beat"); clearTimeout(X.beatOn); X.beatOn = setTimeout(() => m.classList.remove("beat"), 90);
+}
+function syncFrame(now) {
+  if (!X.running) return;
+  X.raf = requestAnimationFrame(syncFrame);
+  let level = 0;
+  if (X.src === "mic" && X.analyser) {
+    X.analyser.getByteFrequencyData(X.bins);
+    const hz = X.ctx.sampleRate / X.analyser.fftSize, band = (a, b) => { let s = 0, n = 0; for (let i = Math.max(1, Math.floor(a / hz)); i <= Math.ceil(b / hz) && i < X.bins.length; i++) { s += X.bins[i]; n++; } return n ? s / n / 255 : 0; };
+    const bass = band(35, 160); level = band(35, 6000);
+    X.hist.push(bass); if (X.hist.length > 60) X.hist.shift();
+    const avg = X.hist.reduce((a, b) => a + b, 0) / X.hist.length;
+    const need = 1.08 + (100 - X.sens) / 100 * 0.5, floor = 0.06 + (100 - X.sens) / 100 * 0.2;
+    if (X.hist.length > 20 && bass > avg * need && bass > floor && now - X.lastBeat > 230) onBeat(now);
+  } else if (X.src === "tap" && X.tapBpm) {
+    const period = 60000 / X.tapBpm;
+    if (now - X.lastBeat >= period - 8) onBeat(X.lastBeat ? X.lastBeat + period : now);
+    level = 0.4;
+  }
+  X.env = Math.max(0, X.env - 0.045);
+  const bright = Math.min(1, 0.12 + 0.88 * Math.max(X.env, level * (0.6 + X.sens / 100)));
+  $("#xMeter .fill").style.width = Math.round(Math.max(level, X.env * 0.9) * 100) + "%";
+  if (X.beats.length > 3) { const g = X.beats.slice(1).map((t, i) => t - X.beats[i]).filter((d) => d > 250 && d < 1500); if (g.length) { g.sort((a, b) => a - b); $("#xStatus").textContent = `${X.src === "tap" ? "Tap-along" : "Listening"} · ~${Math.round(60000 / g[Math.floor(g.length / 2)])} BPM`; } }
+  if (now - X.lastSend < 60 || X.inflight > 1) return;
+  X.lastSend = now;
+  const n = X.ids.length;
+  const frames = X.ids.map((id, i) => {
+    let c;
+    if (X.fx === "pulse") c = hexScale(X.color, bright);
+    else if (X.fx === "jump") c = hsv(X.hue + (i * 360) / Math.max(1, n) * 0.35, 1, bright);
+    else if (X.fx === "rainbow") { X.hue = (X.hue + 0.6 + level * 4) % 360; c = hsv(X.hue + (i * 360) / Math.max(1, n), 1, Math.max(0.35, bright)); }
+    else c = now < X.flashUntil ? "#ffffff" : "#000000";
+    return { id, c };
+  });
+  X.inflight++;
+  fetch("/api/lights/stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ frames }), keepalive: true })
+    .catch(() => {}).finally(() => X.inflight--);
+}
+window.addEventListener("pagehide", () => { if (X.running) navigator.sendBeacon?.("/api/lights/stream/stop", new Blob([JSON.stringify({ before: X.before })], { type: "application/json" })); });
 
 // ---------- boot ----------
 async function loadTvs() {

@@ -543,6 +543,115 @@ app.post("/api/tvs/:id/vega/verify", wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
+
+// ---------- Sonos music + Spotify routes ----------
+app.get("/api/sonos/favorites", wrap(async (req, res) => { const ip = await sonosAnyIp(); const r = await sonosBrowse(ip, "FV:2"); r.items.forEach((it) => { if (/spotify/i.test(it.uri)) learnSpotifyAccount(it.uri, it.meta); }); res.json(r); }));
+app.get("/api/sonos/playlists", wrap(async (req, res) => { const ip = await sonosAnyIp(); res.json(await sonosBrowse(ip, "SQ:")); }));
+app.get("/api/sonos/queue", wrap(async (req, res) => { const g = await coordFor(req.query.group); const r = await sonosBrowse(g.coordinator.ip, "Q:0", 0, 200); res.json({ ...r, current: g.isQueue ? g.track : 0 }); }));
+app.post("/api/sonos/play-item", wrap(async (req, res) => {
+  const { group, source, index, mode } = req.body || {};
+  const g = await coordFor(group);
+  const list = await sonosBrowse(await sonosAnyIp(), source === "playlists" ? "SQ:" : "FV:2");
+  const it = list.items[Number(index)];
+  if (!it) return res.status(404).json({ error: "That item wasn't found. Refresh the list." });
+  await playItem(g, it, mode || "now");
+  res.json({ ok: true, did: `${mode === "add" ? "Added" : mode === "next" ? "Playing next:" : "Playing"} ${it.title}` });
+}));
+app.post("/api/sonos/queue/jump", wrap(async (req, res) => { const g = await coordFor((req.body || {}).group); await playQueueFrom(g, Number(req.body.track)); res.json({ ok: true }); }));
+app.post("/api/sonos/queue/clear", wrap(async (req, res) => { const g = await coordFor((req.body || {}).group); await sonosSoap(g.coordinator.ip, "AVTransport", "RemoveAllTracksFromQueue", { InstanceID: 0 }); res.json({ ok: true }); }));
+app.post("/api/sonos/queue/remove", wrap(async (req, res) => {
+  const g = await coordFor((req.body || {}).group);
+  await sonosSoap(g.coordinator.ip, "AVTransport", "RemoveTrackFromQueue", { InstanceID: 0, ObjectID: `Q:0/${Number(req.body.track)}`, UpdateID: 0 });
+  res.json({ ok: true });
+}));
+app.post("/api/sonos/seek", wrap(async (req, res) => { const g = await coordFor((req.body || {}).group); await sonosSoap(g.coordinator.ip, "AVTransport", "Seek", { InstanceID: 0, Unit: "REL_TIME", Target: secToHms(req.body.seconds) }); res.json({ ok: true }); }));
+app.post("/api/sonos/playmode", wrap(async (req, res) => {
+  const { group, shuffle, repeat } = req.body || {}; // repeat: "off" | "all" | "one"
+  const modes = { "0off": "NORMAL", "0all": "REPEAT_ALL", "0one": "REPEAT_ONE", "1off": "SHUFFLE_NOREPEAT", "1all": "SHUFFLE", "1one": "SHUFFLE_REPEAT_ONE" };
+  const g = await coordFor(group);
+  await sonosSoap(g.coordinator.ip, "AVTransport", "SetPlayMode", { InstanceID: 0, NewPlayMode: modes[(shuffle ? 1 : 0) + (repeat || "off")] });
+  res.json({ ok: true });
+}));
+app.post("/api/sonos/spotify", wrap(async (req, res) => {
+  const { group, link, mode, title } = req.body || {};
+  const g = await coordFor(group);
+  await playSpotifyOnSonos(g, link, mode || "now", title || "");
+  res.json({ ok: true, did: `${mode === "add" ? "Added to queue" : mode === "next" ? "Playing next" : "Playing"} on ${g.name}` });
+}));
+
+app.get("/api/spotify", (req, res) => res.json({ clientId: spotify.clientId || "", connected: !!spotify.refreshToken, user: spotify.user || "", redirect: spotifyRedirect() }));
+app.post("/api/spotify/setup", (req, res) => {
+  const id = String((req.body || {}).clientId || "").trim();
+  if (!/^[0-9a-f]{32}$/i.test(id)) return res.status(400).json({ error: "That Client ID doesn't look right. It's 32 letters and numbers from your Spotify app's page." });
+  spotify = { clientId: id }; saveSpotify(); res.json({ ok: true });
+});
+app.get("/api/spotify/login", (req, res) => {
+  if (!spotify.clientId) return res.status(400).send("Add your Spotify Client ID in TV Remote Hub first.");
+  const verifier = crypto.randomBytes(48).toString("base64url");
+  const state = crypto.randomBytes(12).toString("hex");
+  pkce = { verifier, state };
+  const q = new URLSearchParams({ client_id: spotify.clientId, response_type: "code", redirect_uri: spotifyRedirect(), scope: SPOTIFY_SCOPES, state,
+    code_challenge_method: "S256", code_challenge: crypto.createHash("sha256").update(verifier).digest("base64url") });
+  res.redirect("https://accounts.spotify.com/authorize?" + q);
+});
+app.get("/api/spotify/callback", async (req, res) => {
+  const page = (msg) => res.send(`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font:18px system-ui;background:#232833;color:#e9ebf1;padding:40px;text-align:center"><p>${msg}</p><p><a style="color:#8fb4ff" href="/">Back to TV Remote</a></p></body>`);
+  try {
+    if (req.query.error) return page(`Spotify said: ${String(req.query.error).replace(/[<>&]/g, "")}`);
+    if (!pkce || req.query.state !== pkce.state) return page("That login link expired. Go back and tap Log in with Spotify again.");
+    const j = await formPost("accounts.spotify.com", "/api/token", { grant_type: "authorization_code", code: String(req.query.code), redirect_uri: spotifyRedirect(), client_id: spotify.clientId, code_verifier: pkce.verifier });
+    pkce = null;
+    Object.assign(spotify, { accessToken: j.access_token, refreshToken: j.refresh_token, expiresAt: Date.now() + (j.expires_in || 3600) * 1000 });
+    saveSpotify();
+    try { const me = await spotifyApi("GET", "/me"); spotify.user = me.display_name || me.id; saveSpotify(); } catch {}
+    page("Spotify is connected. You can close this tab.");
+  } catch (e) { page("Couldn't finish connecting: " + String(e.message).replace(/[<>&]/g, "")); }
+});
+app.post("/api/spotify/logout", (req, res) => { spotify = { clientId: spotify.clientId }; saveSpotify(); res.json({ ok: true }); });
+app.get("/api/spotify/search", wrap(async (req, res) => {
+  const q = String(req.query.q || "").trim(); if (!q) return res.json({ tracks: [], albums: [], playlists: [] });
+  const j = await spotifyApi("GET", `/search?${new URLSearchParams({ q, type: "track,album,playlist", limit: "10" })}`);
+  res.json({ tracks: (j.tracks?.items || []).filter(Boolean).map((x) => slimSpotify(x, "track")),
+    albums: (j.albums?.items || []).filter(Boolean).map((x) => slimSpotify(x, "album")),
+    playlists: (j.playlists?.items || []).filter(Boolean).map((x) => slimSpotify(x, "playlist")) });
+}));
+app.get("/api/spotify/playlists", wrap(async (req, res) => {
+  const j = await spotifyApi("GET", "/me/playlists?limit=50");
+  res.json({ playlists: (j.items || []).filter(Boolean).map((x) => slimSpotify(x, "playlist")) });
+}));
+app.get("/api/spotify/recent", wrap(async (req, res) => {
+  const j = await spotifyApi("GET", "/me/player/recently-played?limit=20");
+  const seen = new Set(); const out = [];
+  for (const it of j.items || []) { if (it.track && !seen.has(it.track.uri)) { seen.add(it.track.uri); out.push(slimSpotify(it.track, "track")); } }
+  res.json({ tracks: out });
+}));
+app.get("/api/spotify/player", wrap(async (req, res) => {
+  const [p, d] = await Promise.all([spotifyApi("GET", "/me/player").catch(() => null), spotifyApi("GET", "/me/player/devices").catch(() => ({ devices: [] }))]);
+  const it = p && p.item;
+  res.json({ playing: !!(p && p.is_playing), device: p && p.device ? { id: p.device.id, name: p.device.name, type: p.device.type, volume: p.device.volume_percent } : null,
+    shuffle: !!(p && p.shuffle_state), repeat: (p && p.repeat_state) || "off",
+    track: it ? { name: it.name, sub: (it.artists || []).map((a) => a.name).join(", ") || (it.show && it.show.name) || "", art: pickImg((it.album && it.album.images) || it.images), duration: Math.round((it.duration_ms || 0) / 1000) } : null,
+    position: p ? Math.round((p.progress_ms || 0) / 1000) : 0,
+    devices: (d.devices || []).map((x) => ({ id: x.id, name: x.name, type: x.type, active: x.is_active, volume: x.volume_percent })) });
+}));
+app.post("/api/spotify/control", wrap(async (req, res) => {
+  const { action, device, volume, uri, seconds } = req.body || {};
+  const dq = device ? `?device_id=${encodeURIComponent(device)}` : "";
+  switch (action) {
+    case "play": await spotifyApi("PUT", "/me/player/play" + dq, uri ? (/:track:/.test(uri) ? { uris: [uri] } : { context_uri: uri }) : undefined); break;
+    case "pause": await spotifyApi("PUT", "/me/player/pause"); break;
+    case "next": await spotifyApi("POST", "/me/player/next"); break;
+    case "previous": await spotifyApi("POST", "/me/player/previous"); break;
+    case "volume": await spotifyApi("PUT", `/me/player/volume?volume_percent=${clamp(volume)}`); break;
+    case "seek": await spotifyApi("PUT", `/me/player/seek?position_ms=${Math.max(0, Math.round(seconds * 1000))}`); break;
+    case "shuffle": await spotifyApi("PUT", `/me/player/shuffle?state=${!!req.body.state}`); break;
+    case "repeat": await spotifyApi("PUT", `/me/player/repeat?state=${["off", "context", "track"].includes(req.body.state) ? req.body.state : "off"}`); break;
+    case "transfer": await spotifyApi("PUT", "/me/player", { device_ids: [device], play: true }); break;
+    default: return res.status(400).json({ error: "Unknown Spotify action" });
+  }
+  res.json({ ok: true });
+}));
+
 // ---------- Sonos + lights routes ----------
 app.get("/api/sonos", wrap(async (req, res) => res.json({ groups: await sonosState() })));
 app.post("/api/sonos/volume", wrap(async (req, res) => {
@@ -610,6 +719,45 @@ app.post("/api/lights", (req, res) => {
   const l = { id: Date.now().toString(36), name: String(name).trim(), ip: String(ip).trim() };
   lights.push(l); saveLights(); res.json(l);
 });
+app.post("/api/lights/stream", (req, res) => {
+  // body: { frames: [{ id, c: "#rrggbb" }] } or { ids: [...], c: "#rrggbb" }
+  const b = req.body || {};
+  if (!streamActive) return res.json({ ok: false, stopped: true });
+  clearTimeout(streamStopTimer); streamStopTimer = setTimeout(() => { streamActive = false; }, 30000); // auto-off if the page vanishes
+  const frames = Array.isArray(b.frames) ? b.frames : (b.ids || []).map((id) => ({ id, c: b.c }));
+  for (const f of frames) { const l = findLight(f.id); const rgb = hexToRgb(f.c); if (l && rgb) streamColor(l, ...rgb); }
+  res.json({ ok: true });
+});
+app.post("/api/lights/stream/start", wrap(async (req, res) => {
+  const ids = (req.body || {}).ids || [];
+  const sel = lights.filter((l) => ids.includes(l.id));
+  const before = await Promise.all(sel.map(async (l) => ({ id: l.id, ...(await lightStatus(l)) })));
+  await Promise.allSettled(sel.filter((l, i) => before[i].online && !before[i].on).map((l) => lightPower(l, true)));
+  streamActive = true;
+  sel.forEach((l) => lightSock(l));
+  res.json({ before });
+}));
+app.post("/api/lights/stream/stop", wrap(async (req, res) => {
+  const before = (req.body || {}).before || [];
+  streamActive = false;
+  for (const st of lightSocks.values()) { clearTimeout(st.timer); st.pending = null; }
+  for (const st of lightSocks.values()) { try { st.sock.destroy(); } catch {} }
+  lightSocks.clear();
+  await new Promise((r) => setTimeout(r, 150));
+  await Promise.allSettled(before.filter((x) => x.online).map(async (x) => {
+    const l = findLight(x.id); if (!l) return;
+    if (x.r || x.g || x.b) await lightColor(l, x.r, x.g, x.b);
+    if (!x.on) await lightPower(l, false);
+  }));
+  res.json({ ok: true });
+}));
+app.get("/api/art", (req, res) => { // album art proxy so pictures also load on the secure (https) page
+  const u = String(req.query.u || "");
+  if (!/^http:\/\/(10|127|172\.(1[6-9]|2\d|3[01])|192\.168)\.[\d.]+:1400\//.test(u)) return res.status(400).end();
+  http.get(u, { timeout: 5000 }, (r) => { res.status(r.statusCode || 502); if (r.headers["content-type"]) res.set("Content-Type", r.headers["content-type"]); res.set("Cache-Control", "max-age=3600"); r.pipe(res); })
+    .on("error", () => res.status(502).end()).on("timeout", function () { this.destroy(); });
+});
+app.get("/api/secure", (req, res) => res.json({ port: HTTPS_PORT, ok: !!httpsUp }));
 app.post("/api/lights/all", wrap(async (req, res) => {
   const on = !!(req.body || {}).on;
   const results = await Promise.allSettled(lights.map((l) => lightPower(l, on)));
@@ -657,6 +805,7 @@ const SONOS_SVC = {
   RenderingControl: ["/MediaRenderer/RenderingControl/Control", "urn:schemas-upnp-org:service:RenderingControl:1"],
   GroupRenderingControl: ["/MediaRenderer/GroupRenderingControl/Control", "urn:schemas-upnp-org:service:GroupRenderingControl:1"],
   ZoneGroupTopology: ["/ZoneGroupTopology/Control", "urn:schemas-upnp-org:service:ZoneGroupTopology:1"],
+  ContentDirectory: ["/MediaServer/ContentDirectory/Control", "urn:schemas-upnp-org:service:ContentDirectory:1"],
 };
 function sonosSoap(ip, svc, action, args = {}) {
   const [p, urn] = SONOS_SVC[svc];
@@ -673,7 +822,7 @@ function sonosSoap(ip, svc, action, args = {}) {
     req.write(body); req.end();
   });
 }
-const tag = (x, t) => { const m = String(x).match(new RegExp(`<(?:[\\w]+:)?${t}[^>]*>([\\s\\S]*?)</(?:[\\w]+:)?${t}>`)); return m ? m[1] : ""; };
+const tag = (x, t) => { const m = String(x).match(new RegExp(`<(?:[\\w]+:)?${t}(?:\\s[^>]*)?>([\\s\\S]*?)</(?:[\\w]+:)?${t}>`)); return m ? m[1] : ""; };
 function sonosDiscover(ms = 2500) {
   return new Promise((resolve) => {
     const found = new Set();
@@ -721,10 +870,22 @@ async function sonosState() {
     try { g.volume = Number(tag(await sonosSoap(cip, "GroupRenderingControl", "GetGroupVolume", { InstanceID: 0 }), "CurrentVolume")); } catch { g.volume = g.members[0].volume; }
     try { g.state = tag(await sonosSoap(cip, "AVTransport", "GetTransportInfo", { InstanceID: 0 }), "CurrentTransportState"); } catch { g.state = ""; }
     try {
-      const meta = xmlUnescape(tag(await sonosSoap(cip, "AVTransport", "GetPositionInfo", { InstanceID: 0 }), "TrackMetaData"));
+      const pos = await sonosSoap(cip, "AVTransport", "GetPositionInfo", { InstanceID: 0 });
+      const meta = xmlUnescape(tag(pos, "TrackMetaData"));
       g.title = xmlUnescape(tag(meta, "title")); g.artist = xmlUnescape(tag(meta, "creator"));
+      g.album = xmlUnescape(tag(meta, "album"));
       const stream = xmlUnescape(tag(meta, "streamContent")); if (stream && !g.artist) g.artist = stream;
+      g.art = artUrl(cip, xmlUnescape(tag(meta, "albumArtURI")));
+      g.track = Number(tag(pos, "Track")) || 0;
+      g.position = hmsToSec(tag(pos, "RelTime")); g.duration = hmsToSec(tag(pos, "TrackDuration"));
+      g.uri = xmlUnescape(tag(pos, "TrackURI"));
+      if (/x-sonos-spotify|spotify%3a/i.test(g.uri)) learnSpotifyAccount(g.uri, meta);
     } catch {}
+    try { g.playMode = tag(await sonosSoap(cip, "AVTransport", "GetTransportSettings", { InstanceID: 0 }), "PlayMode"); } catch {}
+    try { const mi = await sonosSoap(cip, "AVTransport", "GetMediaInfo", { InstanceID: 0 }); g.source = xmlUnescape(tag(mi, "CurrentURI")); } catch {}
+    g.isQueue = /^x-rincon-queue:/.test(g.source || "");
+    g.isTv = /^x-sonos-htastream:/.test(g.source || "");
+    if (g.isTv && !g.title) g.title = "TV audio";
     g.name = g.members.map((m) => m.name).join(" + ");
   }));
   return groups;
@@ -739,6 +900,149 @@ async function sonosGroupVolume(coordIp, vol) {
   await sonosSoap(coordIp, "GroupRenderingControl", "SnapshotGroupVolume", { InstanceID: 0 }).catch(() => {});
   return sonosSoap(coordIp, "GroupRenderingControl", "SetGroupVolume", { InstanceID: 0, DesiredVolume: clamp(vol) });
 }
+
+
+// ---------- Sonos music: favorites, playlists, queue, Spotify links ----------
+const hmsToSec = (t) => { const p = String(t || "").split(":").map(Number); return p.length === 3 && p.every((n) => !isNaN(n)) ? p[0] * 3600 + p[1] * 60 + p[2] : 0; };
+const secToHms = (n) => { n = Math.max(0, Math.round(n)); return `${Math.floor(n / 3600)}:${String(Math.floor(n / 60) % 60).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`; };
+const artUrl = (ip, a) => { if (!a) return ""; const u = /^https?:/i.test(a) ? a : `http://${ip}:1400${a.startsWith("/") ? "" : "/"}${a}`; return /^https:/i.test(u) ? u : "/api/art?u=" + encodeURIComponent(u); };
+function learnSpotifyAccount(uri, meta) {
+  const sn = (uri.match(/[?&]sn=(\d+)/) || [])[1];
+  const svc = (String(meta || "").match(/SA_RINCON(\d+)_/) || [])[1];
+  let changed = false;
+  if (sn && sonosKnown.spotifySn !== sn) { sonosKnown.spotifySn = sn; changed = true; }
+  if (svc && /spotify/i.test(uri) && sonosKnown.spotifySvc !== svc) { sonosKnown.spotifySvc = svc; changed = true; }
+  if (changed) saveSonos();
+}
+function parseDidl(xml, ip) {
+  const didl = xmlUnescape(tag(xml, "Result"));
+  const out = [];
+  for (const m of didl.match(/<(item|container)\b[\s\S]*?<\/\1>/g) || []) {
+    const attr = (k) => (m.match(new RegExp(`\\b${k}="([^"]*)"`)) || [])[1] || "";
+    const resMD = xmlUnescape(tag(m, "resMD"));
+    const cls = tag(m, "class") || tag(resMD, "class");
+    out.push({ id: xmlUnescape(attr("id")), title: xmlUnescape(tag(m, "title")), artist: xmlUnescape(tag(m, "creator") || tag(m, "artist")),
+      album: xmlUnescape(tag(m, "album")), uri: xmlUnescape(tag(m, "res")), meta: resMD, cls, art: artUrl(ip, xmlUnescape(tag(m, "albumArtURI") || tag(resMD, "albumArtURI"))) });
+  }
+  return { items: out, total: Number(tag(xml, "TotalMatches")) || out.length };
+}
+async function sonosBrowse(ip, id, start = 0, count = 100) {
+  const r = await sonosSoap(ip, "ContentDirectory", "Browse", { ObjectID: id, BrowseFlag: "BrowseDirectChildren", Filter: "*", StartingIndex: start, RequestedCount: count, SortCriteria: "" });
+  return parseDidl(r, ip);
+}
+async function coordFor(group) {
+  const groups = await sonosState();
+  const g = groups.find((x) => x.id === group || x.members.some((m) => m.uuid === group)) || (!group && groups[0]);
+  if (!g) throw new Error("Speaker group not found. Tap Refresh.");
+  return g;
+}
+async function playQueueFrom(g, trackNr) {
+  const ip = g.coordinator.ip;
+  await sonosSoap(ip, "AVTransport", "SetAVTransportURI", { InstanceID: 0, CurrentURI: `x-rincon-queue:${g.coordinator.uuid}#0`, CurrentURIMetaData: "" });
+  if (trackNr) await sonosSoap(ip, "AVTransport", "Seek", { InstanceID: 0, Unit: "TRACK_NR", Target: trackNr });
+  await sonosSoap(ip, "AVTransport", "Play", { InstanceID: 0, Speed: 1 });
+}
+// mode: "now" = replace the queue and play, "next" = play after the current song, "add" = add to the end
+async function enqueue(g, uri, meta, mode = "now") {
+  const ip = g.coordinator.ip;
+  if (mode === "now") await sonosSoap(ip, "AVTransport", "RemoveAllTracksFromQueue", { InstanceID: 0 }).catch(() => {});
+  const pos = mode === "next" && g.isQueue && g.track ? g.track + 1 : 0;
+  const r = await sonosSoap(ip, "AVTransport", "AddURIToQueue", { InstanceID: 0, EnqueuedURI: uri, EnqueuedURIMetaData: meta || "", DesiredFirstTrackNumberEnqueued: pos, EnqueueAsNext: mode === "next" ? 1 : 0 });
+  const first = Number(tag(r, "FirstTrackNumberEnqueued")) || 1;
+  if (mode === "now") await playQueueFrom(g, first);
+  else if (mode === "next" && !g.isQueue) await playQueueFrom(g, first);
+  return first;
+}
+const isContainer = (it) => /container|playlist/i.test(it.cls || "") || /^x-rincon-cpcontainer:|^file:\/\/\/jffs|savedqueues/i.test(it.uri || "");
+async function playItem(g, it, mode = "now") {
+  const ip = g.coordinator.ip;
+  // radio / streams / TV / line-in can't go in the queue: play them directly
+  const direct = /^(x-sonosapi-radio|x-sonosapi-stream|x-sonosapi-hls|x-rincon-mp3radio|aac|hls-radio|x-sonos-htastream|x-rincon-stream|x-sonosprog-http)/i.test(it.uri) || /audioBroadcast/i.test(it.cls || "");
+  if (direct) {
+    await sonosSoap(ip, "AVTransport", "SetAVTransportURI", { InstanceID: 0, CurrentURI: it.uri, CurrentURIMetaData: it.meta || "" });
+    return sonosSoap(ip, "AVTransport", "Play", { InstanceID: 0, Speed: 1 });
+  }
+  return enqueue(g, it.uri, it.meta, mode);
+}
+const SPOTIFY_MAGIC = {
+  album: ["x-rincon-cpcontainer:1004206c", "00040000", "object.container.album.musicAlbum"],
+  track: ["", "00032020", "object.item.audioItem.musicTrack"],
+  episode: ["", "00032020", "object.item.audioItem.musicTrack"],
+  playlist: ["x-rincon-cpcontainer:1006206c", "1006206c", "object.container.playlistContainer"],
+  show: ["x-rincon-cpcontainer:1006206c", "1006206c", "object.container.playlistContainer"],
+};
+function spotifyCanon(link) {
+  const m = String(link || "").match(/spotify.*?[:/](album|episode|playlist|show|track)[:/]([A-Za-z0-9]+)/);
+  return m ? { type: m[1], id: m[2], uri: `spotify:${m[1]}:${m[2]}` } : null;
+}
+// Plays a Spotify link/URI on Sonos through the Spotify account linked in the Sonos app (same trick the SoCo library uses).
+async function playSpotifyOnSonos(g, link, mode = "now", title = "") {
+  const c = spotifyCanon(link);
+  if (!c) throw new Error("That doesn't look like a Spotify link. In Spotify tap Share, then Copy link.");
+  const enc = c.uri.replace(/:/g, "%3a");
+  const [prefix, key, cls] = SPOTIFY_MAGIC[c.type];
+  const svcs = [...new Set([sonosKnown.spotifySvc, "2311", "3079"].filter(Boolean))];
+  let lastErr;
+  for (const svc of svcs) {
+    const meta = `<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"><item id="${key}${enc}" parentID="-1" restricted="true"><dc:title>${xmlEsc(title)}</dc:title><upnp:class>${cls}</upnp:class><desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/">SA_RINCON${svc}_X_#Svc${svc}-0-Token</desc></item></DIDL-Lite>`;
+    try {
+      await enqueue(g, prefix + enc, meta, mode);
+      if (sonosKnown.spotifySvc !== svc) { sonosKnown.spotifySvc = svc; saveSonos(); }
+      return;
+    } catch (e) { lastErr = e; }
+  }
+  throw new Error(`Sonos wouldn't play that from Spotify. Make sure Spotify is added in the Sonos app (Settings → Services). (${lastErr && lastErr.message})`);
+}
+
+// ---------- Spotify account (Web API, PKCE login; needs Spotify Premium) ----------
+const crypto = require("crypto");
+const SPOTIFY_FILE = path.join(__dirname, "spotify.json");
+let spotify = (() => { try { return JSON.parse(fs.readFileSync(SPOTIFY_FILE, "utf8")); } catch { return {}; } })();
+const saveSpotify = () => fs.writeFileSync(SPOTIFY_FILE, JSON.stringify(spotify, null, 2));
+const SPOTIFY_SCOPES = "user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative user-read-recently-played";
+const spotifyRedirect = () => `http://127.0.0.1:${PORT}/api/spotify/callback`;
+let pkce = null;
+function formPost(host, pth, form) {
+  const body = new URLSearchParams(form).toString();
+  return new Promise((resolve, reject) => {
+    const req = https.request({ host, path: pth, method: "POST", timeout: 8000, headers: { "Content-Type": "application/x-www-form-urlencoded", "Content-Length": Buffer.byteLength(body) } }, (res) => {
+      let out = ""; res.on("data", (c) => (out += c));
+      res.on("end", () => { let j = {}; try { j = JSON.parse(out); } catch {} res.statusCode < 300 ? resolve(j) : reject(new Error(j.error_description || j.error || `Spotify said ${res.statusCode}`)); });
+    });
+    req.on("timeout", () => req.destroy(new Error("Spotify timed out"))); req.on("error", reject); req.write(body); req.end();
+  });
+}
+async function spotifyToken() {
+  if (!spotify.refreshToken) throw new Error("Spotify isn't connected yet. Open the Spotify tab to set it up.");
+  if (spotify.accessToken && spotify.expiresAt > Date.now() + 30000) return spotify.accessToken;
+  const j = await formPost("accounts.spotify.com", "/api/token", { grant_type: "refresh_token", refresh_token: spotify.refreshToken, client_id: spotify.clientId });
+  spotify.accessToken = j.access_token; spotify.expiresAt = Date.now() + (j.expires_in || 3600) * 1000;
+  if (j.refresh_token) spotify.refreshToken = j.refresh_token;
+  saveSpotify();
+  return spotify.accessToken;
+}
+async function spotifyApi(method, pth, body) {
+  const token = await spotifyToken();
+  const data = body ? JSON.stringify(body) : null;
+  return new Promise((resolve, reject) => {
+    const req = https.request({ host: "api.spotify.com", path: "/v1" + pth, method, timeout: 8000,
+      headers: { Authorization: `Bearer ${token}`, ...(data ? { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(data) } : { "Content-Length": 0 }) } }, (res) => {
+      let out = ""; res.on("data", (c) => (out += c));
+      res.on("end", () => {
+        let j = null; try { j = out ? JSON.parse(out) : null; } catch {}
+        if (res.statusCode < 300) return resolve(j);
+        const msg = (j && j.error && (j.error.message || j.error)) || `Spotify said ${res.statusCode}`;
+        reject(new Error(res.statusCode === 403 && /premium/i.test(msg) ? "Spotify Premium is needed for playback control." : res.statusCode === 404 && /device/i.test(msg) ? "No active Spotify device. Start playing something in Spotify first, or pick a device." : msg));
+      });
+    });
+    req.on("timeout", () => req.destroy(new Error("Spotify timed out"))); req.on("error", reject);
+    if (data) req.write(data); req.end();
+  });
+}
+const pickImg = (imgs) => (imgs && imgs.length ? (imgs[imgs.length > 1 ? 1 : 0] || imgs[0]).url : "");
+const slimSpotify = (x, type) => x && ({ type, uri: x.uri, name: x.name,
+  sub: type === "track" ? (x.artists || []).map((a) => a.name).join(", ") : type === "album" ? (x.artists || []).map((a) => a.name).join(", ") : type === "playlist" ? (x.owner && x.owner.display_name) || "" : "",
+  art: pickImg(type === "track" ? x.album && x.album.images : x.images) });
 
 // ---------- MagicLight / Magic Home / ZENGGE lights (local TCP 5577) ----------
 const LIGHTS_FILE = path.join(__dirname, "lights.json");
@@ -802,6 +1106,37 @@ async function setLight(l, { on, color, brightness }) {
   return lightColor(l, ...rgb);
 }
 const findLight = (id) => lights.find((l) => l.id === id);
+
+// ---------- light music sync: fast color stream over kept-open connections ----------
+const lightSocks = new Map(); // id -> { sock, ready, pending, timer, last }
+let streamActive = false, streamStopTimer = null;
+function lightSock(l) {
+  let st = lightSocks.get(l.id);
+  if (st && st.ip === l.ip && !st.dead) return st;
+  st = { ip: l.ip, ready: false, dead: false, pending: null, busyUntil: 0 };
+  const sock = require("net").connect({ host: l.ip, port: 5577 });
+  sock.setNoDelay(true);
+  sock.on("connect", () => { st.ready = true; flushLight(st); });
+  sock.on("data", () => {});
+  const kill = () => { st.dead = true; st.ready = false; try { sock.destroy(); } catch {} };
+  sock.on("error", kill); sock.on("close", kill);
+  sock.setTimeout(20000, kill); // closes itself when music mode stops
+  st.sock = sock;
+  lightSocks.set(l.id, st);
+  return st;
+}
+function flushLight(st) {
+  if (!st.ready || !st.pending) return;
+  const now = Date.now();
+  if (now < st.busyUntil) { clearTimeout(st.timer); st.timer = setTimeout(() => flushLight(st), st.busyUntil - now); return; }
+  st.sock.write(st.pending); st.pending = null; st.busyUntil = now + 45; // controllers choke above ~20 updates/sec
+}
+function streamColor(l, r, g, b) {
+  const st = lightSock(l);
+  st.pending = withSum([0x31, r & 255, g & 255, b & 255, 0x00, 0x00, 0xf0, 0x0f]);
+  flushLight(st);
+}
+
 
 // ---------- presets ----------
 const PRESETS_FILE = path.join(__dirname, "presets.json");
@@ -943,6 +1278,32 @@ app.post("/api/command", wrap(async (req, res) => {
     return res.json({ did: `${off ? "Turning off" : "Setting"} ${which.length === lights.length ? "all lights" : which.map((l) => l.name).join(", ")}${col ? " to " + col : ""}`,
       results: results.map((r, i) => ({ id: which[i].id, name: which[i].name, ok: r.status === "fulfilled", error: r.reason && r.reason.message })) });
   }
+  // 1b2. "play harvest moon on the tv room" / "play my chill playlist on sonos" / "play <favorite>"
+  const pm = text.match(/^(?:play|put on|listen to)\s+(.+?)(?:\s+on\s+(?:the\s+)?(.+?))?(?:\s+on spotify)?$/);
+  if (pm && !matchApp(text)) {
+    let groups = null; try { groups = await sonosState(); } catch {}
+    if (groups && groups.length) {
+      const where = norm(pm[2] || "");
+      const byRoom = where && groups.find((g) => g.members.some((m) => where.includes(norm(m.name)) || norm(m.name).includes(where)));
+      const saidMusic = /\b(sonos|speakers?|spotify|music|song|playlist|album)\b/.test(text) || byRoom;
+      const what = pm[1].replace(/\b(the |my )?(song|playlist|album|music|by)\b/g, (w) => (/by/.test(w) ? " " : " ")).replace(/\s+/g, " ").trim();
+      let fav = null;
+      try { fav = (await sonosBrowse(groups[0].coordinator.ip, "FV:2")).items.find((f) => norm(f.title) === norm(what) || (norm(what).length > 3 && norm(f.title).includes(norm(what)))); } catch {}
+      if ((fav || saidMusic) && !(!byRoom && pm[2] && tvs.some((t) => norm(pm[2]).includes(norm(t.name))))) {
+        const g = byRoom || groups.find((x) => /PLAYING/.test(x.state)) || groups[0];
+        if (fav) { await playItem(g, fav, "now"); return res.json({ did: `Playing ${fav.title} on ${g.name}`, results: [] }); }
+        if (spotify.refreshToken && what) {
+          const type = /\bplaylist\b/.test(pm[1]) ? "playlist" : /\balbum\b/.test(pm[1]) ? "album" : "track";
+          const j = await spotifyApi("GET", `/search?${new URLSearchParams({ q: what, type, limit: "1" })}`);
+          const hit = j[type + "s"] && j[type + "s"].items.filter(Boolean)[0];
+          if (!hit) return res.status(404).json({ error: `Couldn't find "${what}" on Spotify.` });
+          await playSpotifyOnSonos(g, hit.uri, "now", hit.name);
+          return res.json({ did: `Playing ${hit.name}${hit.artists ? " by " + hit.artists.map((a) => a.name).join(", ") : ""} on ${g.name}`, results: [] });
+        }
+        if (saidMusic) return res.status(400).json({ error: "Connect Spotify in the Music tab to play songs by name, or save it as a Sonos favorite." });
+      }
+    }
+  }
   // 1c. Sonos ("sonos volume 30", "pause the music", "group all speakers")
   if (/\b(sonos|music|speaker|speakers)\b/.test(text)) {
     const groups = await sonosState();
@@ -984,6 +1345,46 @@ app.post("/api/command", wrap(async (req, res) => {
 }));
 
 // ---------- start ----------
+// ---------- HTTPS (self-signed) so the iPad's microphone works for voice + light music sync ----------
+const HTTPS_PORT = Number(process.env.HTTPS_PORT) || Number(PORT) + 443;
+const CERT_FILE = path.join(__dirname, "cert.json");
+let httpsUp = false;
+function derLen(n) { if (n < 128) return Buffer.from([n]); const b = []; while (n) { b.unshift(n & 255); n >>= 8; } return Buffer.from([0x80 | b.length, ...b]); }
+const der = (tagByte, ...parts) => { const c = Buffer.concat(parts.map((p) => (Buffer.isBuffer(p) ? p : Buffer.from(p)))); return Buffer.concat([Buffer.from([tagByte]), derLen(c.length), c]); };
+const dSeq = (...x) => der(0x30, ...x), dSet = (...x) => der(0x31, ...x);
+const dInt = (buf) => { if (buf[0] & 0x80) buf = Buffer.concat([Buffer.from([0]), buf]); return der(0x02, buf); };
+const dOid = (str) => { const p = str.split(".").map(Number); const out = [40 * p[0] + p[1]]; for (const n of p.slice(2)) { const b = [n & 127]; let v = n >> 7; while (v) { b.unshift(0x80 | (v & 127)); v >>= 7; } out.push(...b); } return der(0x06, Buffer.from(out)); };
+const dUtc = (d) => der(0x17, Buffer.from(d.toISOString().replace(/[-:T]/g, "").slice(2, 14) + "Z"));
+const localIps = () => Object.values(os.networkInterfaces()).flat().filter((i) => i && i.family === "IPv4").map((i) => i.address);
+function makeCert(ips) {
+  const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const alg = dSeq(dOid("1.2.840.113549.1.1.11"), Buffer.from([0x05, 0x00]));
+  const name = dSeq(dSet(dSeq(dOid("2.5.4.3"), der(0x0c, "TV Remote Hub"))));
+  const now = new Date(Date.now() - 86400000), until = new Date(Date.now() + 800 * 86400000);
+  const san = dSeq(...ips.map((ip) => der(0x87, Buffer.from(ip.split(".").map(Number)))), der(0x82, "localhost"));
+  const exts = der(0xa3, dSeq(
+    dSeq(dOid("2.5.29.17"), der(0x04, san)),
+    dSeq(dOid("2.5.29.19"), der(0x04, dSeq())),
+    dSeq(dOid("2.5.29.37"), der(0x04, dSeq(dOid("1.3.6.1.5.5.7.3.1")))),
+  ));
+  const tbs = dSeq(der(0xa0, dInt(Buffer.from([2]))), dInt(crypto.randomBytes(12)), alg, name, dSeq(dUtc(now), dUtc(until)), name,
+    publicKey.export({ type: "spki", format: "der" }), exts);
+  const sig = crypto.sign("sha256", tbs, privateKey);
+  const certDer = dSeq(tbs, alg, der(0x03, Buffer.concat([Buffer.from([0]), sig])));
+  const pem = "-----BEGIN CERTIFICATE-----\n" + certDer.toString("base64").match(/.{1,64}/g).join("\n") + "\n-----END CERTIFICATE-----\n";
+  return { cert: pem, key: privateKey.export({ type: "pkcs8", format: "pem" }), ips, until: until.getTime() };
+}
+function startHttps() {
+  try {
+    const ips = localIps();
+    let c = null; try { c = JSON.parse(fs.readFileSync(CERT_FILE, "utf8")); } catch {}
+    if (!c || c.until < Date.now() + 7 * 86400000 || ips.some((ip) => !c.ips.includes(ip))) { c = makeCert(ips); fs.writeFileSync(CERT_FILE, JSON.stringify(c)); }
+    https.createServer({ cert: c.cert, key: c.key }, app).on("error", (e) => console.log(`  (Secure page not started: ${e.message})`))
+      .listen(HTTPS_PORT, "0.0.0.0", () => { httpsUp = true; ips.filter((ip) => ip !== "127.0.0.1").forEach((ip) => console.log(`  Secure (for the iPad mic): https://${ip}:${HTTPS_PORT}`)); });
+  } catch (e) { console.log("  (Secure page not started: " + e.message + ")"); }
+}
+startHttps();
+
 app.listen(PORT, "0.0.0.0", async () => {
   const ips = Object.values(os.networkInterfaces()).flat()
     .filter((i) => i && i.family === "IPv4" && !i.internal).map((i) => i.address);
