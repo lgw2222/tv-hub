@@ -423,7 +423,7 @@ body.editing #toast{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
   </section>
 
   <section class="a-lights">
-    <div class="sechead"><h2>Lights</h2><div class="mini"><button id="lAll">Control all</button><button id="lMusic">Music sync</button><button id="lAllOn">On</button><button id="lAllOff">Off</button><button id="lScan" hidden>Find</button></div></div>
+    <div class="sechead"><h2>Lights</h2><div class="mini"><button id="lSyncOn" hidden style="background:var(--power);color:#fff">● Mic on · Stop</button><button id="lAll">Control all</button><button id="lMusic">Music sync</button><button id="lAllOn">On</button><button id="lAllOff">Off</button><button id="lScan" hidden>Find</button></div></div>
     <div class="lights" id="lights"><div class="empty">Tap Control all → Find new lights to look for your MagicLight lights.</div></div>
   </section>
 
@@ -505,6 +505,7 @@ body.editing #toast{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
     <div class="form">
       <div id="xSecure"></div>
       <p class="hint">This device's microphone listens to the room (like the MagicLight app's Music tab) and flashes the lights on the beat. Keep this screen open near the speakers while it runs.</p>
+      <p class="hint">Privacy: the mic is only on after you tap Start, and it's off the moment you tap Stop. Nothing is recorded or sent anywhere. The page only measures how loud the bass is, right on this device, and sends light colors to your PC. It turns itself off after 5 minutes without music. While it's on, a red <b>Mic on · Stop</b> button shows in Lights.</p>
       <label>Effect</label>
       <div class="seg2" id="xFx">
         <button data-fx="jump" aria-pressed="true">Color jump</button><button data-fx="pulse" aria-pressed="false">Pulse</button><button data-fx="rainbow" aria-pressed="false">Rainbow</button><button data-fx="strobe" aria-pressed="false">Strobe</button>
@@ -1438,17 +1439,31 @@ async function beginSync(src) {
   X.ids = [...$("#xLights").querySelectorAll("input:checked")].map((i) => i.value); saveX();
   if (!X.ids.length) { toast("Pick at least one light", true); return false; }
   try { const r = await api("/api/lights/stream/start", { method: "POST", body: { ids: X.ids } }); X.before = r.before || []; } catch (e) { toast(e.message, true); return false; }
-  X.running = true; X.src = src; X.hist = []; X.env = 0;
+  X.running = true; X.src = src; X.hist = []; X.env = 0; X.startedAt = Date.now(); X.lastBeatWall = Date.now();
+  syncIndicator();
   try { X.wake = await navigator.wakeLock?.request("screen"); } catch {}
   cancelAnimationFrame(X.raf); X.raf = requestAnimationFrame(syncFrame);
   return true;
 }
+function syncIndicator() {
+  const on = X.running;
+  $("#lSyncOn").hidden = !on;
+  $("#lSyncOn").textContent = X.src === "tap" ? "● Tap-along on · Stop" : "● Mic on · Stop";
+  document.title = on && X.src === "mic" ? "🎙 TV Remote (listening)" : "TV Remote";
+}
+$("#lSyncOn").onclick = () => stopSync().then(() => toast("Microphone off"));
+// never leave the mic running by accident: stop after 5 quiet minutes or 3 hours total
+setInterval(() => {
+  if (!X.running || X.src !== "mic") return;
+  if (Date.now() - X.lastBeatWall > 5 * 60000) { stopSync(); toast("Music sync stopped: no music heard for 5 minutes"); }
+  else if (Date.now() - X.startedAt > 3 * 3600000) { stopSync(); toast("Music sync stopped after 3 hours"); }
+}, 30000);
 async function stopSync() {
   X.running = false; cancelAnimationFrame(X.raf);
   if (X.stream) { X.stream.getTracks().forEach((t) => t.stop()); X.stream = null; }
   if (X.ctx) { X.ctx.close().catch(() => {}); X.ctx = null; }
   try { await X.wake?.release(); } catch {} X.wake = null;
-  X.tapBpm = 0; X.taps = []; X.src = null;
+  X.tapBpm = 0; X.taps = []; X.src = null; syncIndicator();
   $("#xGo").textContent = "Start listening"; $("#xTap").textContent = "Tap here on the beat";
   $("#xStatus").textContent = "Not listening"; $("#xMeter .fill").style.width = "0";
   await api("/api/lights/stream/stop", { method: "POST", body: { before: X.before } }).catch(() => {});
@@ -1487,7 +1502,7 @@ $("#xTap").onclick = async () => {
 $("#xGo").addEventListener("click", () => { if (X.running && X.src === "tap") stopSync(); }, true);
 
 function onBeat(now) {
-  X.lastBeat = now; X.env = 1; X.beats.push(now); X.beats = X.beats.filter((t) => now - t < 8000);
+  X.lastBeat = now; X.lastBeatWall = Date.now(); X.env = 1; X.beats.push(now); X.beats = X.beats.filter((t) => now - t < 8000);
   X.hue = (X.hue + 97 + Math.random() * 40) % 360; X.flashUntil = now + 70;
   const m = $("#xMeter"); m.classList.add("beat"); clearTimeout(X.beatOn); X.beatOn = setTimeout(() => m.classList.remove("beat"), 90);
 }

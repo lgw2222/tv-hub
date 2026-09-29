@@ -181,7 +181,7 @@ async function vegaKey(tv, cmd) {
   if (!k) throw new Error(`Unknown command ${cmd}`);
   try { return await vegaReq(tv, "POST", `/v1/${k[0]}?action=${k[1]}`, k[2] || {}); }
   catch (e) {
-    if (/^(volup|voldown|mute)$/.test(cmd)) throw new Error(`Volume isn't available on ${tv.name} over Wi-Fi. Use the TV's own remote for volume.`);
+    if (/^(volup|voldown|mute)$/.test(cmd)) throw new Error(`Volume isn't available on ${tv.name} over Wi-Fi. Pick its TV under "Harmony device" in Manage TVs and volume will go through Harmony.`);
     throw e;
   }
 }
@@ -258,8 +258,10 @@ async function harmonyDevices(force) {
   return devs;
 }
 function harmonyPick(dev, want) {
-  const names = { poweron: ["PowerOn", "On"], poweroff: ["PowerOff", "Off"], power: ["PowerToggle", "Power"] }[want] || [want];
+  const names = { poweron: ["PowerOn", "On"], poweroff: ["PowerOff", "Off"], power: ["PowerToggle", "Power"],
+    volup: ["VolumeUp", "Volume Up", "VolUp"], voldown: ["VolumeDown", "Volume Down", "VolDown"], mute: ["Mute", "MuteToggle", "Mute Toggle"] }[want] || [want];
   for (const n of names) { const c = dev.commands.find((x) => x.name.toLowerCase() === n.toLowerCase()); if (c) return c; }
+  if (/^(volup|voldown|mute)$/.test(want)) return null;
   // fall back to the toggle for on/off if the device has no discrete codes
   if (want !== "power") return harmonyPick(dev, "power");
   // no toggle code: "Power" acts as "Turn on" (the remote's off button still works through Turn off)
@@ -270,7 +272,7 @@ async function harmonySend(tv, want) {
   const dev = devs.find((d) => d.id === String(tv.harmonyDevice));
   if (!dev) throw new Error(`${tv.name}'s Harmony device wasn't found. Pick it again in Manage TVs.`);
   const c = harmonyPick(dev, want);
-  if (!c) throw new Error(`${dev.label} has no power command in Harmony.`);
+  if (!c) throw new Error(`${dev.label} has no ${/^(volup|voldown|mute)$/.test(want) ? "volume" : "power"} command in Harmony.`);
   const base = { timestamp: "0", verb: "render", action: c.action };
   await harmonyCall("vnd.logitech.harmony/vnd.logitech.harmony.engine?holdAction", { status: "press", ...base }, false);
   await new Promise((r) => setTimeout(r, 150));
@@ -341,6 +343,11 @@ async function sendKey(tv, cmd) {
     // Also send Wake-on-LAN so the TV's network comes up quickly for the next command.
     if (waking && tv.mac) sendWol(tv);
     return harmonySend(tv, cmd);
+  }
+  if (/^(volup|voldown|mute)$/.test(cmd) && tv.harmonyDevice && harmony.ip) {
+    // Volume goes to the TV itself by infrared through Harmony (Fire Sticks can't change TV volume over Wi-Fi)
+    try { return await harmonySend(tv, cmd); }
+    catch (e) { if (tv.type === "vega") throw e; } // other TVs: fall back to Wi-Fi volume
   }
   if (waking && tv.mac) sendWol(tv); // fire a wake packet up front; harmless if the TV is already on
   return withWake(tv, () => sendKeyRaw(tv, cmd), waking);
