@@ -1,2018 +1,1082 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta name="theme-color" content="#232833">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TV Remote</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📺</text></svg>">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-:root{
-  --shell:#232833; --key:#313745; --key-hi:#3d4454; --key-lo:#262b36;
-  --ink:#e9ebf1; --muted:#8c93a5; --line:#3a4050;
-  --roku:#a77ce0; --gtv:#5b95f7; --fire:#f0913f; --power:#ec5a5e; --ok:#3fbf7f; --warn:#e2b340;
-  --font:"Barlow Semi Condensed", "Arial Narrow", "Segoe UI", system-ui, sans-serif;
-  box-sizing:border-box;
-  padding-top:env(safe-area-inset-top,0px);
-  padding-bottom:env(safe-area-inset-bottom,0px);
-}
-@media (prefers-color-scheme: light){
-  :root{ --shell:#e6e9ef; --key:#fbfcfe; --key-hi:#ffffff; --key-lo:#d4d8e1;
-    --ink:#1e2330; --muted:#697086; --line:#cdd2dc; --roku:#7b45c2; --gtv:#2f6fe0; --fire:#c96a12; }
-}
-*,*::before,*::after{box-sizing:inherit}
-html,body{margin:0;height:100%}
-body{background:var(--shell);color:var(--ink);font-family:var(--font);font-size:17px;
-  -webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;overscroll-behavior:none}
-button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
-button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--gtv);outline-offset:2px}
-.wrap{max-width:440px;margin:0 auto;padding:10px 16px 28px}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>6TV Control Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;800&display=swap" rel="stylesheet" />
+  <style>
+    /* ── CSS Variables ──────────────────────────────────────────── */
+    :root {
+      --bg:          #0a0c10;
+      --surface:     #111318;
+      --surface2:    #181c24;
+      --border:      #1e2530;
+      --border-glow: #1e3a5f;
+      --accent:      #00b4ff;
+      --accent2:     #0077cc;
+      --accent-glow: rgba(0, 180, 255, 0.18);
+      --roku-color:  #6c2bd9;
+      --roku-glow:   rgba(108, 43, 217, 0.25);
+      --fire-color:  #ff4e00;
+      --fire-glow:   rgba(255, 78, 0, 0.25);
+      --green:       #00e676;
+      --red:         #ff1744;
+      --text:        #d4e0f0;
+      --text-dim:    #5a7090;
+      --text-muted:  #2e3d50;
+      --mono:        'Share Tech Mono', monospace;
+      --display:     'Exo 2', sans-serif;
+      --ui:          'Rajdhani', sans-serif;
+    }
 
-/* header */
-header{display:flex;align-items:center;justify-content:space-between;padding:6px 2px 10px}
-header h1{font-size:22px;font-weight:700;margin:0;letter-spacing:.2px}
-.iconbtn{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:var(--key)}
-.iconbtn svg{width:22px;height:22px}
+    /* ── Reset & Base ───────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* TV picker */
-.picker{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 10px;scrollbar-width:none}
-.picker::-webkit-scrollbar{display:none}
-.chip{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:999px;
-  background:var(--key);border:2px solid transparent;font-weight:600;font-size:16px;white-space:nowrap}
-.chip .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
-.chip .dot.on{background:var(--ok)} .chip .dot.sleep{background:var(--warn)} .chip .dot.off{background:var(--power)}
-.chip[aria-pressed="true"]{border-color:var(--c,var(--ink))}
-.chip.roku{--c:var(--roku)} .chip.googletv{--c:var(--gtv)} .chip.firetv{--c:var(--fire)} .chip.vega{--c:var(--fire)}
-.chip.all{--c:var(--ink)}
-.multi{display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-size:15px;padding:0 4px 14px}
-.switch{display:flex;align-items:center;gap:10px}
-.track{width:40px;height:24px;border-radius:12px;background:var(--key-lo);position:relative;transition:background .15s}
-.track::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--muted);transition:transform .15s,background .15s}
-.switch[aria-checked="true"] .track{background:var(--gtv)}
-.switch[aria-checked="true"] .track::after{transform:translateX(16px);background:#fff}
-.target{font-weight:600;color:var(--ink)}
+    body {
+      font-family: var(--display);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
 
-/* keys */
-.key{background:var(--key);border-radius:16px;min-height:56px;display:grid;place-items:center;font-weight:600;font-size:15px;
-  box-shadow:inset 0 1px 0 var(--key-hi),0 2px 0 var(--key-lo);transition:transform .06s}
-.key:active,.key.pressed{transform:translateY(2px);box-shadow:inset 0 1px 0 var(--key-hi)}
-.key svg{width:24px;height:24px}
-.row{display:grid;gap:10px;margin-bottom:10px}
-.r3{grid-template-columns:repeat(3,1fr)}
-.power{color:var(--power)}
-.label{display:flex;flex-direction:column;align-items:center;gap:2px}
-.label small{font-size:12px;color:var(--muted);font-weight:500}
+    /* Scanline overlay for CRT effect */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.06) 2px,
+        rgba(0,0,0,0.06) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
 
-/* d-pad: the one bold element */
-.dpad{position:relative;width:min(280px,76vw);aspect-ratio:1;margin:18px auto 22px;border-radius:50%;
-  background:conic-gradient(from 45deg,var(--key) 0 25%,var(--key-hi) 0 25.3%,var(--key) 0 50%,var(--key-hi) 0 50.3%,var(--key) 0 75%,var(--key-hi) 0 75.3%,var(--key) 0 99.7%,var(--key-hi) 0);
-  box-shadow:inset 0 2px 0 var(--key-hi),0 4px 0 var(--key-lo),0 0 0 6px var(--key-lo)}
-.dpad button{position:absolute;display:grid;place-items:center;color:var(--muted)}
-.dpad button svg{width:30px;height:30px}
-.dpad .up{top:0;left:25%;width:50%;height:30%}
-.dpad .down{bottom:0;left:25%;width:50%;height:30%}
-.dpad .left{left:0;top:25%;width:30%;height:50%}
-.dpad .right{right:0;top:25%;width:30%;height:50%}
-.dpad .dir:active svg,.dpad .dir.pressed svg{color:var(--ink);transform:scale(.9)}
-.dpad .ok{top:31%;left:31%;width:38%;height:38%;border-radius:50%;background:var(--shell);color:var(--ink);font-weight:700;font-size:20px;
-  box-shadow:inset 0 3px 6px var(--key-lo),0 0 0 2px var(--line)}
-.dpad .ok:active,.dpad .ok.pressed{box-shadow:inset 0 5px 10px var(--key-lo),0 0 0 2px var(--line);transform:scale(.97)}
+    /* ── Header ─────────────────────────────────────────────────── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+    }
 
-/* volume rocker */
-.media{display:grid;grid-template-columns:72px 1fr;gap:10px;margin-bottom:10px}
-.rocker{display:grid;grid-template-rows:1fr auto 1fr;background:var(--key);border-radius:16px;overflow:hidden;
-  box-shadow:inset 0 1px 0 var(--key-hi),0 2px 0 var(--key-lo)}
-.rocker button{min-height:58px;display:grid;place-items:center;font-size:26px;font-weight:600}
-.rocker button:active,.rocker button.pressed{background:var(--key-lo)}
-.rocker span{text-align:center;font-size:12px;color:var(--muted);padding:2px 0}
-.media .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
 
-/* sections */
-h2{font-size:15px;font-weight:600;color:var(--muted);margin:22px 4px 10px}
-.apps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.app{background:var(--key);border-radius:12px;padding:14px 6px;font-weight:600;font-size:15px;text-align:center;
-  box-shadow:inset 0 1px 0 var(--key-hi),0 2px 0 var(--key-lo)}
-.app:active{transform:translateY(2px)}
-.app.partial{color:var(--muted)}
-.empty{color:var(--muted);font-size:15px;padding:6px 4px}
-.typer{display:flex;gap:8px}
-input,select{font:inherit;color:var(--ink);background:var(--key-lo);border:1px solid var(--line);border-radius:12px;padding:12px 14px;width:100%;-webkit-user-select:text;user-select:text}
-.btn{background:var(--ink);color:var(--shell);border-radius:12px;padding:12px 18px;font-weight:700;white-space:nowrap}
-.btn.ghost{background:var(--key);color:var(--ink)}
-.btn.danger{background:none;color:var(--power);padding:12px 8px}
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
 
-/* toast */
-#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;
-  background:var(--ink);color:var(--shell);padding:12px 18px;border-radius:14px;font-weight:600;max-width:90vw;text-align:center;
-  transition:opacity .2s,transform .2s;pointer-events:none;z-index:50}
-#toast.show{opacity:1;transform:translate(-50%,0)}
-#toast.err{background:var(--power);color:#fff}
+    .logo-text {
+      font-family: var(--display);
+      font-weight: 800;
+      font-size: 1.3rem;
+      letter-spacing: 2px;
+      color: #fff;
+    }
 
-/* settings sheet */
-.sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:40}
-.sheet.open{display:block}
-.panel{position:absolute;left:0;right:0;bottom:0;max-height:92%;overflow-y:auto;background:var(--shell);border-radius:22px 22px 0 0;
-  padding:18px 16px calc(24px + env(safe-area-inset-bottom,0px));max-width:560px;margin:0 auto;animation:up .22s ease-out}
-@keyframes up{from{transform:translateY(40px);opacity:.4}}
-@media (prefers-reduced-motion: reduce){.panel{animation:none}.key,.track::after{transition:none}}
-.panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-.panel-head h3{margin:0;font-size:21px}
-.tvrow{display:flex;align-items:center;gap:10px;padding:12px;background:var(--key);border-radius:14px;margin-bottom:8px}
-.tvrow .info{flex:1;min-width:0}
-.tvrow .info b{display:block;font-size:17px}
-.tvrow .info span{color:var(--muted);font-size:14px}
-.tag{font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;color:#fff}
-.tag.roku{background:var(--roku)} .tag.googletv{background:var(--gtv)} .tag.firetv{background:var(--fire)} .tag.vega{background:var(--fire)}
-.form{display:grid;gap:10px;background:var(--key);padding:14px;border-radius:16px}
-.form label{display:grid;gap:6px;font-size:14px;color:var(--muted);font-weight:500}
-.seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--key-lo);border-radius:12px;padding:4px}
-.seg button{padding:10px 4px;font-size:15px;border-radius:9px;font-weight:600;color:var(--muted)}
-.seg button[aria-pressed="true"]{background:var(--key-hi);color:var(--ink)}
-.hint{font-size:14px;color:var(--muted);line-height:1.4}
-.hint code{background:var(--key-lo);padding:1px 5px;border-radius:5px;font-size:13px}
-details summary{cursor:pointer;color:var(--ink);font-weight:600;font-size:15px}
-.actions{display:flex;gap:8px;justify-content:flex-end}
-.scanlist .tvrow{background:var(--key-lo)}
-.seg{grid-template-columns:repeat(2,1fr)}
-@media (min-width:480px){.seg{grid-template-columns:repeat(4,1fr)}}
+    .logo-text span {
+      color: var(--accent);
+    }
 
-/* layout areas: phone = one column, iPad = remote left, presets/voice/apps right */
-.layout{display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"pick" "pre" "remote" "voice" "sonos" "lights" "apps";column-gap:28px}
-.layout>section{min-width:0}
-.a-pick{grid-area:pick}.a-pre{grid-area:pre}.a-remote{grid-area:remote}.a-voice{grid-area:voice}.a-apps{grid-area:apps}.a-sonos{grid-area:sonos}.a-screen{grid-area:auto}.a-lights{grid-area:lights}
-@media (min-width:760px){
-  .wrap{max-width:1080px;padding:18px 28px 34px}
-  .layout{grid-template-columns:minmax(340px,420px) 1fr;grid-template-areas:"pick pick" "remote pre" "remote voice" "remote sonos" "remote lights" "remote apps";grid-template-rows:auto auto auto auto auto 1fr;align-items:start;align-content:start}
-  .a-remote{position:sticky;top:12px}
-  .apps{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
-  .presets{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
-  .dpad{width:280px}
-  .a-pre h2:first-child,.a-voice h2:first-child{margin-top:4px}
-  .panel{max-width:640px;bottom:auto;top:6%;border-radius:22px;max-height:88%}
-}
-@media (min-width:1100px){.key{min-height:62px}.app{padding:18px 8px}}
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
 
+    /* ── Buttons ─────────────────────────────────────────────────── */
+    .btn {
+      font-family: var(--ui);
+      font-weight: 600;
+      font-size: 0.85rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface2);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
 
-/* speakers + lights */
-.sechead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:22px 4px 10px}
-.sechead h2{margin:0}
-.sechead .mini{display:flex;gap:6px}
-.mini button{font-size:14px;font-weight:600;background:var(--key);padding:7px 11px;border-radius:10px}
-.sgroup{background:var(--key);border-radius:16px;padding:12px 12px 8px;margin-bottom:10px}
-.sg-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.sg-name{font-weight:700;font-size:17px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sg-np{font-size:14px;color:var(--muted);margin:2px 0 8px;min-height:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sg-tr{display:flex;gap:6px;align-items:center}
-.sg-tr button{width:40px;height:40px;border-radius:12px;background:var(--key-lo);display:grid;place-items:center}
-.sg-tr svg{width:20px;height:20px}
-.vrow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 10px;padding:6px 0}
-.vrow .vl{font-size:15px;display:flex;justify-content:space-between;gap:8px;grid-column:1/-1}
-.vrow .vl span:last-child{color:var(--muted);font-variant-numeric:tabular-nums}
-.vrow.master .vl{font-weight:700}
-.vrow + .vrow{border-top:1px solid var(--line)}
-.mute{width:38px;height:34px;border-radius:10px;background:var(--key-lo);display:grid;place-items:center}
-.mute svg{width:18px;height:18px}.mute[aria-pressed="true"]{background:var(--power);color:#fff}
-input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:30px;background:none!important;border:0!important;padding:0!important;margin:0;box-shadow:none!important}
-input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:4px;background:linear-gradient(to right,var(--gtv) var(--p,50%),var(--key-lo) var(--p,50%))}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;background:#fff;margin-top:-8px;box-shadow:0 1px 4px rgba(0,0,0,.35)}
-input[type=range]::-moz-range-track{height:8px;border-radius:4px;background:var(--key-lo)}
-input[type=range]::-moz-range-progress{height:8px;border-radius:4px;background:var(--gtv)}
-input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;border:0}
-.lights{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-@media (min-width:480px){.lights{grid-template-columns:repeat(3,minmax(0,1fr))}}
-.light{background:var(--key);border-radius:14px;padding:12px 30px 12px 12px;display:flex;align-items:center;gap:10px;text-align:left;min-width:0;position:relative}
-.light .bulb{flex:0 0 auto;width:30px;height:30px;border-radius:50%;background:var(--key-lo);border:2px solid var(--line)}
-.light.on .bulb{background:var(--lc,#ffd76a);border-color:transparent;box-shadow:0 0 14px var(--lc,#ffd76a)}
-.light .ln{font-weight:600;font-size:15px;line-height:1.15;min-width:0;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.light .ls{font-size:12px;color:var(--muted)}
-.light.offline{opacity:.5}
-.light .more{position:absolute;right:4px;top:4px;width:30px;height:30px;border-radius:8px;color:var(--muted);font-size:18px;line-height:1}
-.swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
-.swatches button{aspect-ratio:1;border-radius:50%;border:2px solid var(--line)}
-.checks label{display:flex;align-items:center;gap:10px;padding:10px 4px;font-size:17px;border-bottom:1px solid var(--line)}
-.checks input{width:22px;height:22px}
+    .btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
 
+    .btn:active { transform: scale(0.96); }
 
-/* now playing + music browser */
-.np{display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;align-items:center;margin:10px 0 6px}
-.np img,.np .noart{width:64px;height:64px;border-radius:10px;object-fit:cover;background:var(--key-lo)}
-.np .t{font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.np .a{font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.prog{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
-.modes{display:flex;gap:6px;align-items:center;margin:4px 0 2px;flex-wrap:wrap}
-.modes button{font-size:13px;font-weight:600;background:var(--key-lo);padding:6px 10px;border-radius:9px;color:var(--muted)}
-.modes button[aria-pressed="true"]{background:var(--gtv);color:#fff}
-.modes .grow{flex:1}
-.modes .music{background:var(--ink);color:var(--shell)}
-.tabs{display:flex;gap:4px;background:var(--key-lo);border-radius:12px;padding:4px;margin-bottom:12px}
-.tabs button{flex:1;padding:9px 4px;border-radius:9px;font-weight:600;font-size:15px;color:var(--muted)}
-.tabs button[aria-selected="true"]{background:var(--key-hi);color:var(--ink)}
-.mlist{display:flex;flex-direction:column;gap:2px}
-.mrow{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px 4px;border-radius:10px;text-align:left;width:100%}
-.mrow:active{background:var(--key-lo)}
-.mrow img,.mrow .noart{width:44px;height:44px;border-radius:8px;object-fit:cover;background:var(--key-lo)}
-.mrow .t{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mrow .a{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mrow.cur .t{color:var(--gtv)}
-.mrow .acts{display:flex;gap:4px}
-.mrow .acts span{font-size:12px;font-weight:700;background:var(--key-lo);padding:6px 8px;border-radius:8px;color:var(--muted)}
-.mhead{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:14px 4px 4px}
-.srow{display:flex;gap:8px;margin-bottom:6px}
-.srow input{flex:1;min-width:0}
-.spcard{background:var(--key);border-radius:16px;padding:12px;margin-bottom:10px;border-left:4px solid #1db954}
-.spcard select{width:100%;margin-top:8px}
-.steps-list{margin:6px 0 10px 20px;padding:0;font-size:15px;line-height:1.5}
-.steps-list code{background:var(--key-lo);padding:1px 5px;border-radius:5px;font-size:13px;user-select:all;-webkit-user-select:all}
-#mSheet .panel{max-height:90%}
+    .btn-primary {
+      background: var(--accent2);
+      border-color: var(--accent);
+      color: #fff;
+    }
 
+    .btn-primary:hover {
+      background: var(--accent);
+      box-shadow: 0 0 20px var(--accent-glow);
+      color: #fff;
+    }
 
-/* light music sync */
-.seg2{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
-.seg2 button{background:var(--key-lo);border-radius:10px;padding:10px 4px;font-weight:600;font-size:14px;color:var(--muted)}
-.seg2 button[aria-pressed="true"]{background:var(--gtv);color:#fff}
-.meter{height:54px;border-radius:12px;background:var(--key-lo);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:var(--muted)}
-.meter .fill{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,var(--gtv),#b36bff);opacity:.55;transition:width .06s linear}
-.meter span{position:relative}
-.meter.beat{box-shadow:inset 0 0 0 3px #fff}
-.lchecks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 10px}
-.lchecks label{display:flex;align-items:center;gap:8px;font-size:15px;padding:6px 2px;min-width:0}
-.lchecks input{width:20px;height:20px;flex:0 0 auto}
-.bigbtn{width:100%;padding:16px;font-size:18px}
-.warnbox{background:var(--key-lo);border-radius:12px;padding:12px;font-size:14px;line-height:1.45}
-.warnbox a{color:var(--gtv);font-weight:700}
+    .btn-danger {
+      border-color: var(--red);
+      color: var(--red);
+    }
 
+    .btn-danger:hover {
+      background: rgba(255,23,68,0.1);
+      box-shadow: 0 0 12px rgba(255,23,68,0.2);
+    }
 
-/* control-all lights */
-.fxgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
-.fxgrid button{background:var(--key-lo);border-radius:10px;padding:10px 4px;font-weight:600;font-size:14px;line-height:1.15}
-.fxgrid button .sw{display:block;height:6px;border-radius:3px;margin:6px 8px 0}
-.scenes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
-.scene{background:var(--key-lo);border-radius:12px;padding:10px 12px;text-align:left;font-weight:700;font-size:15px;position:relative;min-width:0}
-.scene small{display:block;font-weight:500;font-size:12px;color:var(--muted);margin-top:2px}
-.scene .x{position:absolute;right:6px;top:4px;color:var(--muted);font-size:16px;padding:2px 6px}
-.chipsel{display:flex;flex-wrap:wrap;gap:6px}
-.chipsel button{background:var(--key-lo);border-radius:999px;padding:7px 12px;font-size:14px;font-weight:600;color:var(--muted);border:2px solid transparent}
-.chipsel button[aria-pressed="true"]{color:var(--ink);border-color:var(--gtv)}
-.chipsel button:disabled{opacity:.4}
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.whites{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.whites button{border-radius:10px;padding:10px 4px;font-weight:700;font-size:13px;color:#222}
+    /* ── Group Control Bar ───────────────────────────────────────── */
+    .group-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 2rem;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
 
-/* custom layout */
-.layout.custom{grid-template-areas:none!important;grid-template-rows:auto 1fr!important;grid-template-columns:minmax(0,1fr)}
-.layout.custom .a-pick{grid-area:auto;grid-column:1/-1}
-.layout.custom .col{display:flex;flex-direction:column;min-width:0;align-self:stretch}
-.layout.custom #colR{display:none}
-.layout.custom .col>section{grid-area:auto}
-@media (min-width:760px){
-  .layout.custom{grid-template-columns:minmax(340px,420px) minmax(0,1fr)}
-  .layout.custom #colR{display:flex}
-  .layout.custom .a-remote{position:static}
-  .layout.custom .a-remote.solo{position:sticky;top:12px}
-  .layout.custom .col>section:first-child>h2:first-child,.layout.custom .col>section:first-child>.sechead:first-child{margin-top:4px}
-}
-.layout.custom .col>section.hid{display:none}
-body.editing .layout.custom .col{min-height:90px;border-radius:16px;outline:2px dashed var(--line);outline-offset:4px;padding-bottom:6px}
-body.editing .col>section{position:relative;max-height:112px;overflow:hidden;border-radius:14px;margin-bottom:10px;transition:transform .12s,box-shadow .12s}
-body.editing .col>section.hid{display:block;opacity:.45}
-.edit-ov{display:none}
-body.editing .edit-ov{display:flex;position:absolute;inset:0;z-index:20;background:color-mix(in srgb,var(--shell) 93%,transparent);border:2px solid var(--line);border-radius:14px;
-  align-items:center;justify-content:space-between;gap:8px;padding:0 12px;touch-action:pan-y;-webkit-user-select:none;user-select:none;cursor:grab}
-.edit-ov .nm{font-weight:700;font-size:18px;display:flex;align-items:center;gap:10px;min-width:0}
-.edit-ov .nm svg{width:22px;height:22px;flex:0 0 auto;color:var(--muted)}
-.edit-ov .bt{display:flex;gap:6px}
-.edit-ov .bt button{width:40px;height:40px;border-radius:10px;background:var(--key);display:grid;place-items:center;font-size:16px;font-weight:700}
-section.dragging{z-index:30;transform:scale(1.03);box-shadow:0 12px 30px rgba(0,0,0,.45)}
-section.dragging .edit-ov{border-color:var(--gtv);cursor:grabbing}
-#editBar{display:none}
-body.editing #editBar{display:block;position:fixed;left:0;right:0;bottom:0;z-index:35;background:var(--key);border-top:1px solid var(--line);
-  padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px))}
-#editBar .in{max-width:1080px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;justify-content:space-between}
-#editBar p{margin:0;font-size:14px;color:var(--muted);flex:1 1 260px}
-#editBar .fb{display:flex;gap:4px;background:var(--key-lo);padding:3px;border-radius:10px}
-#editBar .fb button{padding:7px 10px;border-radius:8px;font-size:13px;font-weight:600;color:var(--muted)}
-#editBar .fb button[aria-pressed="true"]{background:var(--key-hi);color:var(--ink)}
-body.editing .wrap{padding-bottom:150px}
-body.editing #toast{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
-.hapt{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;overflow:hidden}
+    .group-bar-label {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-right: 4px;
+    }
 
+    .group-btn {
+      font-family: var(--ui);
+      font-weight: 600;
+      font-size: 0.8rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 7px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
 
-.axlist{display:flex;flex-direction:column;gap:6px}
-.axrow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center}
-.axrow input[type=text]{min-width:0}
-.axrow .k{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;width:58px}
-.axrow input[type=checkbox]{width:22px;height:22px}
+    .group-btn:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+      background: var(--accent-glow);
+    }
 
+    .group-btn:active { transform: scale(0.96); }
 
-/* what's on the TVs */
-.scr{position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;cursor:pointer}
-.scr img.shot{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
-.scr .card{display:flex;flex-direction:column;align-items:center;gap:8px;color:#e9ebf1;text-align:center;padding:12px}
-.scr .card img{width:96px;height:72px;object-fit:contain;border-radius:8px;background:#111}
-.scr .card b{font-size:18px}
-.scr .card span{font-size:13px;color:#9aa1b3}
-.scr .tag{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.65);color:#fff;font-size:12px;font-weight:600;padding:4px 8px;border-radius:8px;max-width:calc(100% - 16px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.scr .live{position:absolute;right:8px;top:8px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;font-weight:700;padding:3px 7px;border-radius:6px}
-.scr .live::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:#3fbf7f;margin-right:5px;vertical-align:1px}
-.scr.off{background:#0b0c10}
-#wSheet .panel{max-width:none;width:100%;top:0;bottom:0;border-radius:0;max-height:100%;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
-@media (min-width:760px){#wSheet .panel{max-width:none;top:0;border-radius:0;max-height:100%}}
-.wall{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
-@media (max-width:560px){.wall{grid-template-columns:1fr 1fr;gap:8px}.wtile .wn span{display:none}.wall .scr .card span{font-size:11px}.wall .scr .card img{width:56px;height:42px}.wall .scr .card b{font-size:14px}}
-.wtile .wn{font-weight:700;font-size:15px;margin:6px 2px 0;display:flex;justify-content:space-between;gap:8px}
-.wtile .wn span{color:var(--muted);font-weight:500;font-size:13px}
-.wcam{grid-column:1/-1}
-.wcam .scr{aspect-ratio:16/7}
-.wcam img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+    .group-btn.yt-btn:hover {
+      color: #fff;
+      border-color: #ff0000;
+      background: rgba(255,0,0,0.12);
+    }
 
+    /* ── Toast Notification ──────────────────────────────────────── */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 9000;
+      pointer-events: none;
+    }
 
-#gaTvs label{justify-content:space-between}
-#gaTvs label span.st{font-size:13px;color:var(--muted);margin-left:auto}
-#gaTvs label span.st.ok{color:var(--ok)}
-.gares{margin-top:10px;display:flex;flex-direction:column;gap:6px;font-size:14px}
-.gares div{background:var(--key-lo);border-radius:10px;padding:8px 10px}
-.gares a{color:var(--gtv);font-weight:700}
+    .toast {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border-left: 3px solid var(--accent);
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards;
+      max-width: 320px;
+    }
 
-/* presets */
-.presets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}
-.preset{background:var(--key);border-radius:14px;padding:14px 12px;text-align:left;font-weight:700;font-size:17px;
-  box-shadow:inset 0 1px 0 var(--key-hi),0 2px 0 var(--key-lo);border-left:4px solid var(--gtv);min-height:64px;min-width:0}
-.preset small{display:block;font-weight:500;font-size:13px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.preset:active,.preset.running{transform:translateY(2px);opacity:.8}
-.preset.add{border-left-color:transparent;border:2px dashed var(--line);box-shadow:none;background:none;color:var(--muted);text-align:center;font-weight:600}
-.sechead{display:flex;align-items:center;justify-content:space-between}
-.sechead h2{margin-right:auto}
-.link{color:var(--muted);font-size:14px;font-weight:600;padding:6px 4px}
-.editing .preset:not(.add){border-left-color:var(--warn)}
+    .toast.error {
+      border-left-color: var(--red);
+      color: #ff8a80;
+    }
 
-/* voice */
-.voice{display:flex;gap:8px}
-.mic{flex:0 0 52px;height:50px;border-radius:12px;background:var(--gtv);color:#fff;display:grid;place-items:center}
-.mic svg{width:24px;height:24px}
-.mic.listening{background:var(--power);animation:pulse 1s infinite}
-@keyframes pulse{50%{opacity:.6}}
-.examples{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-.examples button{font-size:13px;color:var(--muted);background:var(--key-lo);padding:6px 10px;border-radius:999px}
+    .toast.success {
+      border-left-color: var(--green);
+      color: #b9f6ca;
+    }
 
-/* preset editor */
-.steps{display:grid;gap:8px}
-.step{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--key-lo);padding:10px;border-radius:12px;position:relative}
-.step .full{grid-column:1/-1}
-.step select,.step input{padding:10px 12px}
-.step .x{position:absolute;top:-8px;right:-8px;width:28px;height:28px;border-radius:50%;background:var(--power);color:#fff;font-weight:700;line-height:1}
-.step .num{grid-column:1/-1;font-size:12px;color:var(--muted);font-weight:700}
-@media (min-width:760px){.step{grid-template-columns:1.1fr 1fr 1.3fr}.step .full{grid-column:auto}}
-</style>
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(20px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes toastOut {
+      from { opacity: 1; }
+      to   { opacity: 0; }
+    }
+
+    /* ── Main Grid ───────────────────────────────────────────────── */
+    main {
+      padding: 2rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 1.5rem;
+    }
+
+    /* ── TV Card ─────────────────────────────────────────────────── */
+    .tv-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      position: relative;
+    }
+
+    .tv-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .tv-card:hover {
+      border-color: var(--border-glow);
+      box-shadow: 0 0 30px rgba(0, 100, 200, 0.1);
+    }
+
+    .tv-card:hover::before { opacity: 1; }
+
+    .tv-card.roku-card::before {
+      background: linear-gradient(90deg, transparent, var(--roku-color), transparent);
+    }
+
+    .tv-card.firetv-card::before {
+      background: linear-gradient(90deg, transparent, var(--fire-color), transparent);
+    }
+
+    /* Card Header */
+    .card-header {
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .device-badge {
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+
+    .roku-badge {
+      background: var(--roku-glow);
+      color: #b39ddb;
+      border: 1px solid rgba(108,43,217,0.3);
+    }
+
+    .firetv-badge {
+      background: var(--fire-glow);
+      color: #ffab91;
+      border: 1px solid rgba(255,78,0,0.3);
+    }
+
+    .tv-name {
+      font-family: var(--display);
+      font-size: 1rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .tv-ip {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      color: var(--text-dim);
+    }
+
+    .card-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      transition: background 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .status-dot.online {
+      background: var(--green);
+      box-shadow: 0 0 8px rgba(0,230,118,0.6);
+    }
+
+    .status-dot.offline {
+      background: var(--red);
+    }
+
+    .icon-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text-dim);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      transition: all 0.15s ease;
+    }
+
+    .icon-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Card Body */
+    .card-body {
+      padding: 16px;
+    }
+
+    /* YouTube Row */
+    .youtube-row {
+      margin-bottom: 14px;
+    }
+
+    .yt-card-btn {
+      width: 100%;
+      padding: 8px;
+      background: rgba(255,0,0,0.08);
+      border: 1px solid rgba(255,0,0,0.2);
+      border-radius: 7px;
+      color: #ff6b6b;
+      font-family: var(--ui);
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .yt-card-btn:hover {
+      background: rgba(255,0,0,0.15);
+      border-color: rgba(255,0,0,0.5);
+      color: #ff4d4d;
+    }
+
+    /* Remote control layout */
+    .remote {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .remote-row {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .rkey {
+      flex: 1;
+      min-width: 0;
+      padding: 10px 6px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-family: var(--ui);
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      text-align: center;
+      user-select: none;
+    }
+
+    .rkey:hover {
+      border-color: var(--accent);
+      background: var(--accent-glow);
+      color: var(--accent);
+    }
+
+    .rkey:active {
+      transform: scale(0.92);
+      background: rgba(0,180,255,0.25);
+    }
+
+    .rkey.nav { font-size: 1.1rem; }
+
+    .rkey.ok {
+      background: var(--accent2);
+      border-color: var(--accent);
+      color: #fff;
+      font-size: 0.75rem;
+    }
+
+    .rkey.ok:hover {
+      background: var(--accent);
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+
+    .rkey.power {
+      border-color: rgba(255,23,68,0.4);
+      color: var(--red);
+    }
+
+    .rkey.power:hover {
+      background: rgba(255,23,68,0.1);
+      border-color: var(--red);
+      box-shadow: 0 0 12px rgba(255,23,68,0.2);
+    }
+
+    .rkey.mute {
+      color: var(--text-dim);
+    }
+
+    /* Nav D-pad area */
+    .dpad {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: auto auto auto;
+      gap: 6px;
+      max-width: 160px;
+      margin: 0 auto;
+    }
+
+    .dpad-empty { background: none; border: none; cursor: default; }
+    .dpad-empty:hover { background: none; border: none; box-shadow: none; color: inherit; }
+
+    /* ── Modal ──────────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 500;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border-glow);
+      border-radius: 14px;
+      padding: 28px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      transform: translateY(10px);
+      transition: transform 0.2s ease;
+    }
+
+    .modal-overlay.open .modal { transform: translateY(0); }
+
+    .modal h2 {
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 1.2rem;
+      margin-bottom: 6px;
+      color: #fff;
+    }
+
+    .modal p {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      margin-bottom: 20px;
+      font-family: var(--mono);
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group label {
+      display: block;
+      font-family: var(--ui);
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 10px 12px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 0.88rem;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .form-group select option { background: var(--surface2); }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      justify-content: flex-end;
+    }
+
+    /* ── YouTube Group Modal ─────────────────────────────────────── */
+    .tv-checkbox-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 250px;
+      overflow-y: auto;
+      margin-bottom: 16px;
+    }
+
+    .tv-checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s ease;
+    }
+
+    .tv-checkbox-item:hover { border-color: var(--accent); }
+
+    .tv-checkbox-item input[type="checkbox"] {
+      width: 16px; height: 16px;
+      accent-color: var(--accent);
+    }
+
+    .tv-checkbox-item .tv-checkbox-name {
+      font-family: var(--ui);
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+
+    .tv-checkbox-item .tv-checkbox-type {
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      margin-left: auto;
+    }
+
+    /* ── Spinner ─────────────────────────────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Empty State ─────────────────────────────────────────────── */
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--text-dim);
+    }
+
+    .empty-state .empty-icon { font-size: 3rem; margin-bottom: 16px; opacity: 0.4; }
+
+    .empty-state h3 {
+      font-family: var(--display);
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .empty-state p {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* ── Responsive ──────────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      header { padding: 0 1rem; }
+      .group-bar { padding: 10px 1rem; }
+      main { padding: 1rem; gap: 1rem; }
+      .logo-text { font-size: 1rem; }
+      .header-actions .btn span { display: none; }
+    }
+  </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>TV Remote</h1>
-    <div style="display:flex;gap:8px"><button class="iconbtn" id="editLayout" aria-label="Edit layout" title="Edit layout">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
-    </button>
-    <button class="iconbtn" id="openSettings" aria-label="Manage TVs">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
-    </button></div>
-  </header>
 
-  <div class="layout">
-  <section class="a-pick">
-  <div class="picker" id="picker" role="group" aria-label="Choose TVs"></div>
-  <div class="multi">
-    <button class="switch" id="multiSwitch" role="switch" aria-checked="false"><span class="track"></span>Control several</button>
-    <span>Sending to <span class="target" id="targetLabel">no TV</span></span>
+<!-- ── Header ───────────────────────────────────────────────────── -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">📺</div>
+    <div class="logo-text"><span>6TV</span> Control Hub</div>
   </div>
-  </section>
-
-  <section class="a-pre">
-    <div class="sechead"><h2>Presets</h2><button class="link" id="editPresets">Edit</button></div>
-    <div class="presets" id="presets"></div>
-  </section>
-
-  <section class="a-remote">
-
-  <div class="row r3">
-    <button class="key power" data-cmd="power" aria-label="Power toggle"><span class="label">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg><small>Power</small></span></button>
-    <button class="key" data-cmd="poweron">Turn on</button>
-    <button class="key" data-cmd="poweroff">Turn off</button>
+  <div class="header-actions">
+    <button class="btn" onclick="pingAll()">🔍 <span>Ping All</span></button>
+    <button class="btn btn-primary" onclick="openAddModal()">+ <span>Add TV</span></button>
   </div>
+</header>
 
-  <div class="dpad">
-    <button class="dir up" data-cmd="up" data-repeat aria-label="Up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></button>
-    <button class="dir left" data-cmd="left" data-repeat aria-label="Left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
-    <button class="ok" data-cmd="ok">OK</button>
-    <button class="dir right" data-cmd="right" data-repeat aria-label="Right"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
-    <button class="dir down" data-cmd="down" data-repeat aria-label="Down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
-  </div>
-
-  <div class="row r3">
-    <button class="key" data-cmd="back" aria-label="Back"><span class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><small>Back</small></span></button>
-    <button class="key" data-cmd="home" aria-label="Home"><span class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg><small>Home</small></span></button>
-    <button class="key" data-cmd="menu" aria-label="Options"><span class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg><small>Options</small></span></button>
-  </div>
-
-  <div class="media">
-    <div class="rocker">
-      <button data-cmd="volup" data-repeat aria-label="Volume up">+</button>
-      <span>Vol</span>
-      <button data-cmd="voldown" data-repeat aria-label="Volume down">−</button>
-    </div>
-    <div class="grid">
-      <button class="key" data-cmd="rew" aria-label="Rewind"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 6v12l-8-6zM20 6v12l-8-6z"/></svg></button>
-      <button class="key" data-cmd="play" aria-label="Play or pause"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 5v14l9-7z"/><path d="M15 5h2.5v14H15zM19.5 5H22v14h-2.5z"/></svg></button>
-      <button class="key" data-cmd="ff" aria-label="Fast forward"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 6v12l8-6zM4 6v12l8-6z"/></svg></button>
-      <button class="key" data-cmd="mute" aria-label="Mute"><span class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l4 6M21 9l-4 6"/></svg><small>Mute</small></span></button>
-      <button class="key" data-cmd="replay" aria-label="Replay"><span class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v6h6"/><path d="M5 15a8 8 0 1 0 1.5-8.5L4 10"/></svg><small>Replay</small></span></button>
-      <button class="key" id="refreshStatus" aria-label="Check which TVs are on"><span class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1" fill="currentColor"/></svg><small>Check</small></span></button>
-    </div>
-  </div>
-
-  </section>
-
-  <section class="a-voice">
-    <h2>Say or type a command</h2>
-    <div class="voice">
-      <button class="mic" id="micBtn" aria-label="Speak a command"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
-      <input id="cmdIn" placeholder="Game Day, ESPN on the Hisense, lights off, Sonos volume 30" autocomplete="off" enterkeyhint="go">
-      <button class="btn" id="cmdGo">Go</button>
-    </div>
-    <div class="examples" id="examples"></div>
-  </section>
-
-  <section class="a-screen">
-    <div class="sechead"><h2 id="scTitle">On screen</h2><div class="mini"><button id="scAll">See all TVs</button></div></div>
-    <div class="scr" id="scOne"><div class="empty">Pick a TV to see what's on it.</div></div>
-  </section>
-
-  <section class="a-sonos">
-    <div class="sechead"><h2>Speakers</h2><div class="mini"><button id="sSpotify" style="background:#1db954;color:#000">Spotify</button><button id="sGroupAll">Group all</button><button id="sRefresh">Refresh</button></div></div>
-    <div id="spNow"></div>
-    <div id="sonos"><div class="empty">Looking for Sonos speakers…</div></div>
-  </section>
-
-  <section class="a-lights">
-    <div class="sechead"><h2>Lights</h2><div class="mini"><button id="lSyncOn" hidden style="background:var(--power);color:#fff">● Mic on · Stop</button><button id="lAll">Control all</button><button id="lMusic">Music sync</button><button id="lAllOn">On</button><button id="lAllOff">Off</button><button id="lScan" hidden>Find</button></div></div>
-    <div class="lights" id="lights"><div class="empty">Tap Control all → Find new lights to look for your MagicLight lights.</div></div>
-  </section>
-
-  <section class="a-apps">
-  <div class="sechead"><h2>Open an app</h2><div class="mini"><button id="getApps">+ Get apps</button></div></div>
-  <div class="apps" id="apps"><div class="empty">Pick a TV to see its apps.</div></div>
-
-  <h2>Type into search</h2>
-  <div class="typer">
-    <input id="textIn" placeholder="Show or movie name" autocomplete="off" enterkeyhint="send">
-    <button class="btn" id="sendText">Send</button>
-  </div>
-  </section>
-  </div>
+<!-- ── Group Control Bar ─────────────────────────────────────────── -->
+<div class="group-bar">
+  <span class="group-bar-label">All TVs:</span>
+  <button class="group-btn" onclick="groupCommand('power')" title="Power all TVs">
+    ⏻ Power All
+  </button>
+  <button class="group-btn" onclick="groupCommand('home')" title="Home on all TVs">
+    ⌂ Home All
+  </button>
+  <button class="group-btn" onclick="groupCommand('mute')" title="Mute all TVs">
+    🔇 Mute All
+  </button>
+  <button class="group-btn yt-btn" onclick="openYouTubeModal()" title="Open YouTube on selected TVs">
+    ▶ YouTube on Selected…
+  </button>
 </div>
 
-<!-- Music browser -->
-<div class="sheet" id="mSheet" aria-hidden="true">
-  <div class="panel" role="dialog" aria-label="Music">
-    <div class="panel-head"><h3 id="mTitle">Music</h3><button class="btn ghost" id="mClose">Done</button></div>
-    <div class="tabs" role="tablist">
-      <button role="tab" data-mt="fav" aria-selected="true">Favorites</button>
-      <button role="tab" data-mt="spotify">Spotify</button>
-      <button role="tab" data-mt="lists">Playlists</button>
-      <button role="tab" data-mt="queue">Queue</button>
-    </div>
-    <div id="mBody"></div>
+<!-- ── TV Cards Grid ─────────────────────────────────────────────── -->
+<main id="tv-grid">
+  <div class="empty-state">
+    <div class="empty-icon">📡</div>
+    <h3>Loading TVs…</h3>
   </div>
-</div>
+</main>
 
-<!-- Sonos group editor -->
-<div class="sheet" id="gSheet" aria-hidden="true">
-  <div class="panel" role="dialog" aria-label="Group speakers">
-    <div class="panel-head"><h3 id="gTitle">Group with</h3><button class="btn ghost" id="gClose">Cancel</button></div>
-    <div class="form">
-      <p class="hint">Check the speakers that should play together. Unchecked speakers go back to playing on their own.</p>
-      <div class="checks" id="gChecks"></div>
-      <div class="actions"><button class="btn" id="gSave">Done</button></div>
+<!-- ── Add / Edit TV Modal ───────────────────────────────────────── -->
+<div class="modal-overlay" id="tv-modal" onclick="closeModal(event, 'tv-modal')">
+  <div class="modal">
+    <h2 id="modal-title">Add TV</h2>
+    <p id="modal-subtitle">Enter the details for your TV or streaming device.</p>
+    <input type="hidden" id="edit-tv-id" />
+    <div class="form-group">
+      <label>Display Name</label>
+      <input type="text" id="tv-name-input" placeholder="e.g. Living Room Roku" />
+    </div>
+    <div class="form-group">
+      <label>IP Address</label>
+      <input type="text" id="tv-ip-input" placeholder="e.g. 192.168.1.101" />
+    </div>
+    <div class="form-group">
+      <label>Device Type</label>
+      <select id="tv-type-input">
+        <option value="roku">Roku (Roku TV, Roku Ultra, etc.)</option>
+        <option value="firetv">Fire TV / Fire Stick</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModalById('tv-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTV()">Save TV</button>
     </div>
   </div>
 </div>
 
-<!-- All TVs wall -->
-<div class="sheet" id="wSheet" aria-hidden="true">
-  <div class="panel" role="dialog" aria-label="All TVs">
-    <div class="panel-head"><h3>All TVs</h3><div style="display:flex;gap:8px"><button class="btn ghost" id="wCamSet">Camera…</button><button class="btn ghost" id="wClose">Done</button></div></div>
-    <div class="wall" id="wall"></div>
-    <p class="hint" style="margin-top:14px">Fire TV and Google TV screens show a live picture (it refreshes every few seconds). Rokus and the newer Fire Stick don't allow screen pictures, so they show which app is open. Shows in apps like Netflix, YouTube TV and Hulu are copy-protected, so the TV sends a black picture for those; the app name is shown instead. Want to see every screen for real? Point an old phone running an IP-camera app at the TV wall and add it with <b>Camera…</b>. Tap a TV to control it.</p>
-  </div>
-</div>
-
-<!-- Install apps -->
-<div class="sheet" id="gaSheet" aria-hidden="true">
-  <div class="panel" role="dialog" aria-label="Get apps">
-    <div class="panel-head"><h3>Get an app on your TVs</h3><button class="btn ghost" id="gaClose">Done</button></div>
-    <div class="form">
-      <div class="srow"><input id="gaQ" placeholder="Search any app (Fox Sports, Tubi, Peacock…)" autocomplete="off" enterkeyhint="search"><button class="btn" id="gaSearch">Search</button></div>
-      <div class="chipsel" id="gaPop"></div>
-      <div id="gaRes" class="mlist"></div>
-      <div id="gaPick" hidden>
-        <label id="gaPickName"></label>
-        <div id="gaTvs" class="checks"></div>
-        <button class="btn" id="gaGo">Install on checked TVs</button>
-      </div>
-      <div id="gaOut"></div>
-      <p class="hint">The search checks what's already on each TV. When an app is on one TV, the hub knows exactly which app to get for the others. Fire TVs and the Google TV open the app's store page and press Get/Install for you (or show store search results if it's not on any TV yet). Rokus add apps another Roku already has; otherwise they show Roku search results, or use the Roku website link to add it to every Roku at once. The newer Fire Stick installs from Amazon's website with "Deliver to".</p>
+<!-- ── YouTube Group Modal ───────────────────────────────────────── -->
+<div class="modal-overlay" id="yt-modal" onclick="closeModal(event, 'yt-modal')">
+  <div class="modal">
+    <h2>Open YouTube</h2>
+    <p>Select which TVs to open YouTube on.</p>
+    <div class="tv-checkbox-list" id="yt-tv-list"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModalById('yt-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="sendYouTubeGroup()">▶ Open YouTube</button>
     </div>
   </div>
 </div>
 
-<!-- Control all lights -->
-<div class="sheet" id="aSheet" aria-hidden="true">
-  <div class="panel" role="dialog" aria-label="Control all lights">
-    <div class="panel-head"><h3>All lights</h3><button class="btn ghost" id="aClose">Done</button></div>
-    <div class="form">
-      <label>Which lights</label>
-      <div class="chipsel" id="aPick"></div>
-      <div class="row2"><button class="btn ghost" id="aOff">Turn off</button><button class="btn" id="aOn">Turn on</button></div>
-      <label>Scenes</label>
-      <div class="scenes" id="aScenes"></div>
-      <button class="btn ghost" id="aSaveScene">+ Save these lights' look as a scene</button>
-      <label>Color</label>
-      <div class="swatches" id="aSwatches"></div>
-      <div class="whites" id="aWhites"></div>
-      <label>Custom color<input type="color" id="aColor" value="#ff0040" style="height:44px;padding:2px"></label>
-      <label>Brightness <span id="aBriVal">100%</span><input type="range" id="aBri" min="5" max="100" value="100"></label>
-      <label>Light shows (built into the lights)</label>
-      <div class="fxgrid" id="aFx"></div>
-      <label>Show speed <span id="aSpdVal">60%</span><input type="range" id="aSpd" min="1" max="100" value="60"></label>
-      <div class="row2"><button class="btn ghost" id="aMusic">Music sync…</button><button class="btn ghost" id="aFind">Find new lights</button></div>
-    </div>
-  </div>
-</div>
-
-<!-- Layout editing bar -->
-<div id="editBar"><div class="in">
-  <p>Press and hold a panel, then drag it where you want it. Or use the arrows. The eye hides a panel.</p>
-  <div class="fb" id="fbPick" role="group" aria-label="Button feedback"><button data-fb="vibrate">Vibrate</button><button data-fb="sound">Click sound</button><button data-fb="both">Both</button><button data-fb="off">Off</button></div>
-  <div style="display:flex;gap:8px"><button class="btn ghost" id="layoutReset">Reset</button><button class="btn" id="layoutDone">Done</button></div>
-</div></div>
-<label class="hapt" aria-hidden="true"><input type="checkbox" switch id="haptSw" tabindex="-1"></label>
-
-<!-- Light music sync -->
-<div class="sheet" id="xSheet" aria-hidden="true">
-  <div class="panel" role="dialog" aria-label="Music sync">
-    <div class="panel-head"><h3>Lights to the music</h3><button class="btn ghost" id="xClose">Done</button></div>
-    <div class="form">
-      <div id="xSecure"></div>
-      <p class="hint">This device's microphone listens to the room (like the MagicLight app's Music tab) and flashes the lights on the beat. Keep this screen open near the speakers while it runs.</p>
-      <p class="hint">Privacy: the mic is only on after you tap Start, and it's off the moment you tap Stop. Nothing is recorded or sent anywhere. The page only measures how loud the bass is, right on this device, and sends light colors to your PC. It turns itself off after 5 minutes without music. While it's on, a red <b>Mic on · Stop</b> button shows in Lights.</p>
-      <label>Effect</label>
-      <div class="seg2" id="xFx">
-        <button data-fx="jump" aria-pressed="true">Color jump</button><button data-fx="pulse" aria-pressed="false">Pulse</button><button data-fx="rainbow" aria-pressed="false">Rainbow</button><button data-fx="strobe" aria-pressed="false">Strobe</button>
-      </div>
-      <div id="xColorWrap" hidden><label>Pulse color</label><div class="swatches" id="xSwatches"></div></div>
-      <label>Sensitivity <span id="xSensVal"></span><input type="range" id="xSens" min="0" max="100" value="60"></label>
-      <div class="meter" id="xMeter"><div class="fill"></div><span id="xStatus">Not listening</span></div>
-      <button class="btn bigbtn" id="xGo">Start listening</button>
-      <label>No mic? Tap along to the beat instead</label>
-      <button class="btn ghost bigbtn" id="xTap">Tap here on the beat</button>
-      <label>Lights</label>
-      <div class="lchecks" id="xLights"></div>
-    </div>
-  </div>
-</div>
-
-<!-- Light editor -->
-<div class="sheet" id="lSheet" aria-hidden="true">
-  <div class="panel" role="dialog" aria-label="Light">
-    <div class="panel-head"><h3 id="lTitle">Light</h3><button class="btn ghost" id="lClose">Done</button></div>
-    <div class="form">
-      <label>Name<input id="lName" placeholder="Bottom clouds"></label>
-      <p class="hint">Not sure which light this is? Tap Blink and watch which one flashes. <span id="lInfo"></span></p>
-      <button class="btn ghost" id="lBlink">Blink it</button>
-      <label>Color</label>
-      <div class="swatches" id="lSwatches"></div>
-      <label>Custom color<input type="color" id="lColor" value="#ffffff" style="height:44px;padding:2px"></label>
-      <label>Brightness <span id="lBriVal"></span><input type="range" id="lBri" min="5" max="100" value="100"></label>
-      <div class="actions">
-        <button class="btn danger" id="lDelete">Remove</button>
-        <button class="btn ghost" id="lOff">Turn off</button>
-        <button class="btn" id="lOn">Turn on</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Preset editor -->
-<div class="sheet" id="pSheet" aria-hidden="true">
-  <div class="panel" role="dialog" aria-label="Edit preset">
-    <div class="panel-head">
-      <h3 id="peTitle">New preset</h3>
-      <button class="btn ghost" id="peClose">Cancel</button>
-    </div>
-    <div class="form">
-      <label>Name<input id="peName" placeholder="Game Day"></label>
-      <p class="hint">Steps run top to bottom. Add a short wait after turning TVs on so apps have time to load.</p>
-      <div class="steps" id="peSteps"></div>
-      <button class="btn ghost" id="peAdd">+ Add a step</button>
-      <div class="actions">
-        <button class="btn danger" id="peDelete" hidden>Delete preset</button>
-        <button class="btn ghost" id="peTest">Test it</button>
-        <button class="btn" id="peSave">Save</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Manage TVs -->
-<div class="sheet" id="sheet" aria-hidden="true">
-  <div class="panel" role="dialog" aria-label="Manage TVs">
-    <div class="panel-head">
-      <h3>Your TVs</h3>
-      <button class="btn ghost" id="closeSettings">Done</button>
-    </div>
-    <div id="tvList"></div>
-
-    <h2 id="formTitle">Add a TV</h2>
-    <div class="form">
-      <label>Name<input id="fName" placeholder="Living room"></label>
-      <label>IP address<input id="fIp" placeholder="192.168.1.50" inputmode="decimal"></label>
-      <label>Harmony device for power (optional, most reliable on/off)<select id="fHarmony"><option value="">None</option></select></label>
-      <label>MAC address (optional, lets the hub turn the TV on from off)<input id="fMac" placeholder="Filled in automatically once the TV is seen on" autocapitalize="off"></label>
-      <div class="seg" role="group" aria-label="TV type">
-        <button type="button" data-type="roku" aria-pressed="true">Roku</button>
-        <button type="button" data-type="googletv" aria-pressed="false">Google TV</button>
-        <button type="button" data-type="firetv" aria-pressed="false">Fire TV</button>
-        <button type="button" data-type="vega" aria-pressed="false">Fire TV (Vega)</button>
-      </div>
-      <div id="adbFields" hidden>
-        <label>ADB port<input id="fPort" value="5555" inputmode="numeric"></label>
-        <p class="hint">After saving, tap Connect. The TV will ask to allow debugging. Choose "Always allow from this computer," then tap Allow.</p>
-      </div>
-      <p class="hint" id="vegaHint" hidden>For newer Fire Sticks with no ADB option (they show a code screen instead of Developer options). After saving, tap Pair. A PIN appears on the TV; type it in once.</p>
-      <p class="hint" id="rokuHint">Rokus only need the IP. Find it on the TV under Settings, Network, About.</p>
-      <div class="actions">
-        <button class="btn ghost" id="cancelEdit" hidden>Cancel</button>
-        <button class="btn" id="saveTv">Save TV</button>
-      </div>
-    </div>
-
-    <h2>Harmony Hub</h2>
-    <div class="form">
-      <p class="hint" style="margin:0">Harmony sends the TV's own infrared power code, which works even when the TV is fully off. Add each TV as a device in the Harmony app first, and turn on <b>Enable XMPP</b> in the app (Settings, Harmony Setup, Add/Edit Devices &amp; Activities, Remote &amp; Hub). The hub needs to be able to "see" the TVs, or use Harmony IR mini blasters for TVs in other spots.</p>
-      <label>Harmony Hub IP<input id="hIp" placeholder="192.168.1.23" inputmode="decimal"></label>
-      <div class="actions"><button class="btn" id="hSave">Connect</button></div>
-      <p class="hint" id="hStatus" style="margin:0"></p>
-    </div>
-
-    <h2>Alexa</h2>
-    <div class="form">
-      <p class="hint" style="margin:0">Your Echo can control everything below with no Alexa skill or account linking. The hub shows up to Alexa as a Philips Hue bridge on your Wi-Fi. Say <b>"Alexa, discover devices"</b> (or in the Alexa app: Devices, +, Add Device, Philips Hue, then Discover). Then: "Alexa, turn on Game Day", "Alexa, set Bottom clouds to blue", "Alexa, set TV Room speakers to 30 percent", "Alexa, turn off Upper left".</p>
-      <p class="hint" id="axStatus" style="margin:0"></p>
-      <div id="axList" class="axlist"></div>
-      <p class="hint" style="margin:0">Rename something here if Alexa mixes it up with a device it already knows (like a Fire TV that's also in the Alexa app), then say "discover devices" again.</p>
-    </div>
-
-    <h2>Turning TVs on when they're fully off</h2>
-    <div class="form"><p class="hint" style="margin:0">A TV that's fully off drops off Wi-Fi, so nothing can reach it until it wakes. The hub sends a wake-up signal to the TV's MAC address, but the TV has to be set to listen:<br>
-      <b>Roku TVs:</b> Settings, System, Power, <b>Fast TV start: On</b>.<br>
-      <b>Google TVs:</b> Settings, System, Power &amp; energy, turn on <b>network standby</b> / <b>Remote start</b> / <b>Wake on LAN</b> (name varies by brand).<br>
-      <b>Fire TV built into the TV:</b> Settings, Display &amp; Sounds, Power Controls, turn on <b>wake</b> / <b>network standby</b> options.<br>
-      <b>Fire Sticks:</b> plug the stick's power into a wall outlet, not the TV's USB port, and turn on <b>HDMI-CEC</b> on the TV so the stick can switch the TV on.</p></div>
-
-    <h2>Find Rokus automatically</h2>
-    <button class="btn ghost" id="scanBtn" style="width:100%">Scan my Wi-Fi for Rokus</button>
-    <div class="scanlist" id="scanList" style="margin-top:10px"></div>
-
-    <h2>Device that won't connect?</h2>
-    <details class="form">
-      <summary>Pair with a code</summary>
-      <p class="hint">Only needed on newer Google TVs. On the TV: Settings, System, Developer options, Wireless debugging, Pair device with pairing code. Enter the port shown after the colon and the six-digit code. Then set that TV's ADB port to the connect port shown on the Wireless debugging screen.</p>
-      <label>TV<select id="pTv"></select></label>
-      <label>Pairing port<input id="pPort" inputmode="numeric" placeholder="37251"></label>
-      <label>Pairing code<input id="pCode" inputmode="numeric" placeholder="123456"></label>
-      <div class="actions"><button class="btn" id="pairBtn">Pair</button></div>
-    </details>
-  </div>
-</div>
-
-<div id="toast" role="status" aria-live="polite"></div>
+<!-- ── Toast Container ───────────────────────────────────────────── -->
+<div id="toast-container"></div>
 
 <script>
-const $ = (s, el = document) => el.querySelector(s);
-const $$ = (s, el = document) => [...el.querySelectorAll(s)];
-const store = {
-  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
-};
-
+// ── State ─────────────────────────────────────────────────────────
 let tvs = [];
-let status = {};
-let selected = new Set(store.get("selected", []));
-let multi = store.get("multi", false);
-let editingId = null;
-let formType = "roku";
-const LABEL = { roku: "Roku", googletv: "Google TV", firetv: "Fire TV", vega: "Fire TV" };
 
-async function api(path, opts = {}) {
-  const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts,
-    body: opts.body ? JSON.stringify(opts.body) : undefined });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+// ── API Helpers ───────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+  };
+  if (body) opts.body = JSON.stringify(body);
+
+  const res = await fetch(path, opts);
+  const data = await res.json();
+  if (!res.ok && !data.success) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
 }
 
-let toastTimer;
-function toast(msg, err = false) {
-  const t = $("#toast");
-  t.textContent = msg; t.className = "show" + (err ? " err" : "");
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.className = ""), err ? 4200 : 1600);
+// ── Toast Notifications ───────────────────────────────────────────
+function toast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = message;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 3200);
 }
-function report(results, okMsg) {
-  const bad = results.filter((r) => !r.ok);
-  if (bad.length) toast(bad.map((r) => `${r.name}: ${r.error}`).join("\n"), true);
-  else if (okMsg) toast(okMsg);
-}
-const buzz = () => {}; // feedback now happens for every button press (see "button feedback")
-const targets = () => [...selected].filter((id) => tvs.some((t) => t.id === id));
 
-// ---------- picker ----------
-function renderPicker() {
-  const p = $("#picker");
-  p.innerHTML = "";
-  if (!tvs.length) { p.innerHTML = '<div class="empty">No TVs yet. Tap the button at the top right to add one.</div>'; }
-  if (tvs.length > 1) {
-    const all = document.createElement("button");
-    all.className = "chip all"; all.textContent = "All TVs";
-    all.setAttribute("aria-pressed", String(selected.size === tvs.length));
-    all.onclick = () => { multi = true; selected = new Set(tvs.map((t) => t.id)); commitSelection(); };
-    p.appendChild(all);
+// ── Load & Render TVs ─────────────────────────────────────────────
+async function loadTVs() {
+  tvs = await api('GET', '/api/tvs');
+  renderGrid();
+}
+
+function renderGrid() {
+  const grid = document.getElementById('tv-grid');
+
+  if (tvs.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📺</div>
+        <h3>No TVs Added Yet</h3>
+        <p>Click "+ Add TV" in the top right to get started.</p>
+      </div>`;
+    return;
   }
-  for (const tv of tvs) {
-    const s = status[tv.id];
-    const cls = !s ? "" : !s.online ? "off" : s.awake ? "on" : "sleep";
-    const b = document.createElement("button");
-    b.className = `chip ${tv.type}`;
-    b.setAttribute("aria-pressed", String(selected.has(tv.id)));
-    b.innerHTML = `<span class="dot ${cls}"></span>`;
-    b.append(tv.name);
-    b.title = !s ? "Checking" : !s.online ? (s.error || "Offline") : s.awake ? "On" : "Asleep";
-    b.onclick = () => {
-      if (multi) { selected.has(tv.id) ? selected.delete(tv.id) : selected.add(tv.id); }
-      else selected = new Set([tv.id]);
-      commitSelection();
-    };
-    p.appendChild(b);
-  }
-  $("#multiSwitch").setAttribute("aria-checked", String(multi));
-  const t = targets();
-  $("#targetLabel").textContent = !t.length ? "no TV" : t.length === tvs.length && t.length > 1 ? "all TVs"
-    : t.length === 1 ? tvs.find((x) => x.id === t[0]).name : `${t.length} TVs`;
-}
-function commitSelection() {
-  store.set("selected", [...selected]); store.set("multi", multi);
-  renderPicker(); loadApps();
-}
-$("#multiSwitch").onclick = () => {
-  multi = !multi;
-  if (!multi && selected.size > 1) selected = new Set([targets()[0]]);
-  commitSelection();
-};
 
-// ---------- buttons ----------
-async function sendKey(cmd) {
-  const ids = targets();
-  if (!ids.length) return toast("Pick a TV first", true);
-  buzz();
-  try { report(await api("/api/key", { method: "POST", body: { ids, cmd } })); }
-  catch (e) { toast(e.message, true); }
-}
-for (const btn of $$("[data-cmd]")) {
-  let delay, rep;
-  const stop = () => { clearTimeout(delay); clearInterval(rep); btn.classList.remove("pressed"); };
-  btn.addEventListener("pointerdown", (e) => {
-    e.preventDefault();
-    btn.classList.add("pressed");
-    sendKey(btn.dataset.cmd);
-    if (btn.hasAttribute("data-repeat")) delay = setTimeout(() => (rep = setInterval(() => sendKey(btn.dataset.cmd), 180)), 450);
-  });
-  ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => btn.addEventListener(ev, stop));
-  btn.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sendKey(btn.dataset.cmd); } });
-  btn.addEventListener("contextmenu", (e) => e.preventDefault());
-}
-// keyboard arrows work on desktop
-document.addEventListener("keydown", (e) => {
-  if (e.target.matches("input,select") || document.querySelector(".sheet.open")) return;
-  const map = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", Enter: "ok", Backspace: "back", Escape: "back" };
-  if (map[e.key] && !e.target.matches("button")) { e.preventDefault(); sendKey(map[e.key]); }
-});
-
-// ---------- apps ----------
-let appsReq = 0;
-async function loadApps() {
-  const ids = targets(), box = $("#apps"), my = ++appsReq;
-  if (!ids.length) { box.innerHTML = '<div class="empty">Pick a TV to see its apps.</div>'; return; }
-  box.innerHTML = '<div class="empty">Loading apps…</div>';
-  try {
-    const { catalog, per } = await api(`/api/apps?ids=${ids.join(",")}`);
-    if (my !== appsReq) return;
-    const known = per.filter((p) => p.apps);
-    const count = (k) => known.filter((p) => p.apps.includes(k)).length;
-    const list = known.length ? catalog.filter((a) => count(a.key) > 0) : catalog;
-    box.innerHTML = "";
-    if (!list.length) { box.innerHTML = '<div class="empty">None of the usual streaming apps are installed.</div>'; return; }
-    for (const a of list) {
-      const b = document.createElement("button");
-      const partial = known.length > 1 && count(a.key) < known.length;
-      b.className = "app" + (partial ? " partial" : "");
-      b.textContent = a.name;
-      if (partial) b.title = `Installed on ${count(a.key)} of ${known.length} TVs`;
-      b.onclick = async () => {
-        buzz();
-        const run = ids.filter((id) => { const p = per.find((x) => x.id === id); return !p || !p.apps || p.apps.includes(a.key); });
-        try { report(await api("/api/launch", { method: "POST", body: { ids: run, app: a.key } }), `Opening ${a.name}`); }
-        catch (e) { toast(e.message, true); }
-      };
-      box.appendChild(b);
-    }
-  } catch (e) { if (my === appsReq) box.innerHTML = `<div class="empty">${e.message}</div>`; }
+  grid.innerHTML = tvs.map(tv => buildCard(tv)).join('');
 }
 
-// ---------- text ----------
-async function sendText() {
-  const text = $("#textIn").value;
-  if (!text) return;
-  const ids = targets();
-  if (!ids.length) return toast("Pick a TV first", true);
-  try { report(await api("/api/text", { method: "POST", body: { ids, text } }), "Sent"); $("#textIn").value = ""; }
-  catch (e) { toast(e.message, true); }
-}
-$("#sendText").onclick = sendText;
-$("#textIn").addEventListener("keydown", (e) => { if (e.key === "Enter") sendText(); });
+function buildCard(tv) {
+  const isRoku = tv.type === 'roku';
+  const badgeClass = isRoku ? 'roku-badge' : 'firetv-badge';
+  const badgeLabel = isRoku ? 'ROKU' : 'FIRE TV';
+  const cardClass = isRoku ? 'roku-card' : 'firetv-card';
 
-// ---------- status ----------
-async function refreshStatus(show) {
-  try {
-    const list = await api("/api/status");
-    status = Object.fromEntries(list.map((s) => [s.id, s]));
-    renderPicker();
-    if (show) {
-      const off = list.filter((s) => !s.online).map((s) => tvs.find((t) => t.id === s.id)?.name);
-      toast(off.length ? `Can't reach: ${off.join(", ")}` : "All TVs reachable", off.length > 0);
-    }
-  } catch {}
-}
-$("#refreshStatus").addEventListener("click", () => refreshStatus(true));
-setInterval(() => document.visibilityState === "visible" && refreshStatus(false), 20000);
-document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && refreshStatus(false));
-
-// ---------- manage TVs ----------
-let harmonyDevs = [];
-function fillHarmony(sel) {
-  const s = $("#fHarmony");
-  s.innerHTML = '<option value="">None</option>' + harmonyDevs.map((d) => `<option value="${d.id}">${d.label}${d.power && !d.power.length ? " (no power code)" : ""}</option>`).join("");
-  s.value = sel && harmonyDevs.some((d) => d.id === sel) ? sel : "";
-  s.closest("label").hidden = !harmonyDevs.length;
-}
-async function loadHarmony() {
-  try {
-    const h = await api("/api/harmony"); $("#hIp").value = h.ip || "";
-    if (h.ip) { harmonyDevs = (await api("/api/harmony/devices")).devices; $("#hStatus").textContent = `Connected. ${harmonyDevs.length} Harmony devices found.`; }
-    else { harmonyDevs = []; $("#hStatus").textContent = "Not set up."; }
-  } catch (e) { harmonyDevs = []; $("#hStatus").textContent = e.message; }
-  fillHarmony($("#fHarmony").value);
-}
-$("#hSave").onclick = async () => {
-  $("#hStatus").textContent = "Connecting…";
-  try { const r = await api("/api/harmony", { method: "POST", body: { ip: $("#hIp").value } }); harmonyDevs = r.devices; $("#hStatus").textContent = r.devices.length ? `Connected. ${r.devices.length} Harmony devices found. Edit each TV and pick its Harmony device.` : "Saved."; fillHarmony(""); await loadHarmony(); renderList(); }
-  catch (e) { $("#hStatus").textContent = e.message; }
-};
-function openSheet() { loadHarmony(); $("#sheet").classList.add("open"); $("#sheet").setAttribute("aria-hidden", "false"); renderList(); }
-function closeSheet() { $("#sheet").classList.remove("open"); $("#sheet").setAttribute("aria-hidden", "true"); resetForm(); }
-$("#openSettings").onclick = openSheet;
-$("#closeSettings").onclick = closeSheet;
-$("#sheet").addEventListener("click", (e) => { if (e.target.id === "sheet") closeSheet(); });
-
-function setType(t) {
-  formType = t;
-  $$(".seg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.type === t)));
-  $("#adbFields").hidden = t === "roku" || t === "vega";
-  $("#vegaHint").hidden = t !== "vega";
-  $("#rokuHint").hidden = t !== "roku";
-}
-$$(".seg button").forEach((b) => (b.onclick = () => setType(b.dataset.type)));
-
-function resetForm() {
-  editingId = null; $("#fName").value = ""; $("#fIp").value = ""; $("#fMac").value = ""; $("#fHarmony").value = ""; $("#fPort").value = "5555";
-  setType("roku"); $("#formTitle").textContent = "Add a TV"; $("#saveTv").textContent = "Save TV"; $("#cancelEdit").hidden = true;
-}
-$("#cancelEdit").onclick = resetForm;
-
-function renderList() {
-  const box = $("#tvList");
-  box.innerHTML = tvs.length ? "" : '<p class="hint">Add your first TV below.</p>';
-  for (const tv of tvs) {
-    const row = document.createElement("div");
-    row.className = "tvrow";
-    row.innerHTML = `<span class="tag ${tv.type}">${LABEL[tv.type]}</span>
-      <div class="info"><b></b><span>${tv.ip}${tv.type === "roku" || tv.type === "vega" ? "" : ":" + (tv.adbPort || 5555)}${tv.type === "vega" ? (tv.paired ? " · paired" : " · not paired") : ""}</span></div>`;
-    $("b", row).textContent = tv.name;
-    if (tv.type === "vega") {
-      const p = document.createElement("button"); p.className = "btn ghost"; p.textContent = tv.paired ? "Re-pair" : "Pair";
-      p.onclick = async () => {
-        p.textContent = "Asking TV…";
-        try {
-          await api(`/api/tvs/${tv.id}/vega/pin`, { method: "POST" });
-          const pin = prompt(`Enter the PIN shown on ${tv.name}`);
-          if (pin) { await api(`/api/tvs/${tv.id}/vega/verify`, { method: "POST", body: { pin } }); toast(`${tv.name} paired`); await loadTvs(); renderList(); refreshStatus(false); return; }
-        } catch (e) { toast(e.message, true); }
-        p.textContent = tv.paired ? "Re-pair" : "Pair";
-      };
-      row.appendChild(p);
-    } else if (tv.type !== "roku") {
-      const c = document.createElement("button"); c.className = "btn ghost"; c.textContent = "Connect";
-      c.onclick = async () => {
-        c.textContent = "Connecting…";
-        try { await api(`/api/tvs/${tv.id}/connect`, { method: "POST" }); toast(`${tv.name} connected`); refreshStatus(false); }
-        catch (e) { toast(e.message, true); }
-        c.textContent = "Connect";
-      };
-      row.appendChild(c);
-    }
-    if (tv.harmonyDevice) {
-      const h = document.createElement("button"); h.className = "btn ghost"; h.textContent = "Test IR";
-      h.title = "Sends Power On through Harmony";
-      h.onclick = async () => { try { const r = await api(`/api/tvs/${tv.id}/harmony-test`, { method: "POST" }); toast(`Sent ${r.sent}`); } catch (e) { toast(e.message, true); } };
-      row.appendChild(h);
-    }
-    const ed = document.createElement("button"); ed.className = "btn ghost"; ed.textContent = "Edit";
-    ed.onclick = () => {
-      editingId = tv.id; $("#fName").value = tv.name; $("#fIp").value = tv.ip; $("#fMac").value = tv.mac || ""; fillHarmony(tv.harmonyDevice || ""); $("#fPort").value = tv.adbPort || 5555;
-      setType(tv.type); $("#formTitle").textContent = `Edit ${tv.name}`; $("#saveTv").textContent = "Save changes"; $("#cancelEdit").hidden = false;
-      $("#fName").focus();
-    };
-    const del = document.createElement("button"); del.className = "btn danger"; del.textContent = "Remove";
-    del.onclick = async () => {
-      if (!confirm(`Remove ${tv.name}?`)) return;
-      await api(`/api/tvs/${tv.id}`, { method: "DELETE" }); selected.delete(tv.id); await loadTvs(); renderList();
-    };
-    row.append(ed, del);
-    box.appendChild(row);
-  }
-  $("#pTv").innerHTML = tvs.filter((t) => t.type === "googletv" || t.type === "firetv").map((t) => `<option value="${t.id}">${t.name}</option>`).join("")
-    || '<option value="">Add a Google TV or Fire TV first</option>';
-}
-
-$("#saveTv").onclick = async () => {
-  const body = { name: $("#fName").value, ip: $("#fIp").value, type: formType, adbPort: $("#fPort").value, mac: $("#fMac").value, harmonyDevice: $("#fHarmony").value };
-  if (!body.name.trim() || !body.ip.trim()) return toast("Enter a name and IP address", true);
-  try {
-    const tv = editingId ? await api(`/api/tvs/${editingId}`, { method: "PUT", body }) : await api("/api/tvs", { method: "POST", body });
-    toast(editingId ? "Changes saved" : `${tv.name} added`);
-    if (!editingId && !selected.size) selected.add(tv.id);
-    resetForm(); await loadTvs(); renderList(); refreshStatus(false);
-  } catch (e) { toast(e.message, true); }
-};
-
-$("#scanBtn").onclick = async () => {
-  const btn = $("#scanBtn"), box = $("#scanList");
-  btn.textContent = "Scanning…"; btn.disabled = true; box.innerHTML = "";
-  try {
-    const found = await api("/api/scan");
-    const fresh = found.filter((f) => !tvs.some((t) => t.ip === f.ip));
-    if (!found.length) box.innerHTML = '<p class="hint">No Rokus answered. Make sure this PC is on the same Wi-Fi, or add them by IP.</p>';
-    else if (!fresh.length) box.innerHTML = '<p class="hint">Every Roku found is already added.</p>';
-    for (const f of fresh) {
-      const row = document.createElement("div"); row.className = "tvrow";
-      row.innerHTML = `<span class="tag roku">Roku</span><div class="info"><b></b><span>${f.ip}</span></div>`;
-      $("b", row).textContent = f.name;
-      const add = document.createElement("button"); add.className = "btn"; add.textContent = "Add";
-      add.onclick = async () => {
-        await api("/api/tvs", { method: "POST", body: { name: f.name, ip: f.ip, type: "roku" } });
-        row.remove(); await loadTvs(); renderList(); refreshStatus(false); toast(`${f.name} added`);
-      };
-      row.appendChild(add); box.appendChild(row);
-    }
-  } catch (e) { toast(e.message, true); }
-  btn.textContent = "Scan my Wi-Fi for Rokus"; btn.disabled = false;
-};
-
-$("#pairBtn").onclick = async () => {
-  const id = $("#pTv").value;
-  if (!id) return toast("Add a Google TV or Fire TV first", true);
-  try {
-    await api(`/api/tvs/${id}/pair`, { method: "POST", body: { pairPort: $("#pPort").value, code: $("#pCode").value } });
-    toast("Paired. Now set the ADB port and tap Connect.");
-    $("#pCode").value = "";
-  } catch (e) { toast(e.message, true); }
-};
-
-// ---------- presets ----------
-let presets = [], catalog = [], presetEdit = false, editingPreset = null;
-const ACTIONS = [["poweron", "Turn on"], ["poweroff", "Turn off"], ["app", "Open app"], ["key", "Press button"], ["text", "Type text"], ["wait", "Wait (seconds)"]];
-const KEYS = [["home", "Home"], ["back", "Back"], ["ok", "OK"], ["up", "Up"], ["down", "Down"], ["left", "Left"], ["right", "Right"], ["play", "Play/Pause"], ["mute", "Mute"], ["volup", "Volume up"], ["voldown", "Volume down"], ["menu", "Options"]];
-const tvName = (id) => id === "all" ? "All TVs" : (tvs.find((t) => t.id === id) || {}).name || "Missing TV";
-function summary(p) {
-  const bits = p.steps.filter((s) => s.action === "app").map((s) => `${tvName(s.tv)} → ${(catalog.find((a) => a.key === s.value) || {}).name || s.value}`);
-  if (bits.length) return bits.join(" · ");
-  if (p.steps.some((s) => s.action === "poweroff")) return "Turns TVs off";
-  return `${p.steps.length} step${p.steps.length === 1 ? "" : "s"}`;
-}
-async function loadPresets() { try { presets = await api("/api/presets"); } catch { presets = []; } renderPresets(); renderExamples(); }
-async function loadCatalog() { try { catalog = (await api("/api/apps?ids=")).catalog; } catch {} }
-function renderPresets() {
-  const box = $("#presets");
-  box.classList.toggle("editing", presetEdit);
-  $("#editPresets").textContent = presetEdit ? "Done" : "Edit";
-  box.innerHTML = "";
-  for (const p of presets) {
-    const b = document.createElement("button");
-    b.className = "preset"; b.innerHTML = `<span></span><small></small>`;
-    $("span", b).textContent = p.name; $("small", b).textContent = presetEdit ? "Tap to edit" : summary(p);
-    b.onclick = () => (presetEdit ? openPreset(p) : runPreset(p, b));
-    box.appendChild(b);
-  }
-  const add = document.createElement("button");
-  add.className = "preset add"; add.textContent = "+ New preset";
-  add.onclick = () => openPreset(null);
-  box.appendChild(add);
-}
-$("#editPresets").onclick = () => { presetEdit = !presetEdit; renderPresets(); };
-async function runPreset(p, btn) {
-  buzz(); btn && btn.classList.add("running"); toast(`Running ${p.name}…`);
-  try { const r = await api(`/api/presets/${p.id}/run`, { method: "POST" }); report(r.results, `${p.name} done`); }
-  catch (e) { toast(e.message, true); }
-  btn && btn.classList.remove("running"); setTimeout(() => refreshStatus(false), 3000);
-}
-function opt(list, sel) { return list.map(([v, l]) => `<option value="${v}"${v === sel ? " selected" : ""}>${l}</option>`).join(""); }
-function stepRow(st, i) {
-  const el = document.createElement("div"); el.className = "step";
-  const tvOpts = [["all", "All TVs"], ...tvs.map((t) => [t.id, t.name])];
-  el.innerHTML = `<span class="num">Step ${i + 1}</span>
-    <select data-f="tv" aria-label="TV"${st.action === "wait" ? " disabled" : ""}>${opt(tvOpts, st.tv)}</select>
-    <select data-f="action" aria-label="Action">${opt(ACTIONS, st.action)}</select>
-    <span class="full" data-slot></span>
-    <button class="x" aria-label="Remove step">×</button>`;
-  const slot = $("[data-slot]", el);
-  const draw = () => {
-    const a = st.action;
-    slot.innerHTML = a === "app" ? `<select data-f="value" aria-label="App">${opt(catalog.map((c) => [c.key, c.name]), st.value || (catalog[0] || {}).key)}</select>`
-      : a === "key" ? `<select data-f="value" aria-label="Button">${opt(KEYS, st.value || "home")}</select>`
-      : a === "text" ? `<input data-f="value" placeholder="Text to type" value="">`
-      : a === "wait" ? `<input data-f="value" inputmode="numeric" placeholder="Seconds" value="">`
-      : `<span class="hint">&nbsp;</span>`;
-    const v = $("[data-f=value]", slot);
-    if (v) { if (v.tagName === "INPUT") v.value = st.value || (a === "wait" ? "5" : ""); st.value = v.value; v.oninput = v.onchange = () => (st.value = v.value); }
-    else st.value = "";
-    $("[data-f=tv]", el).disabled = a === "wait";
-  };
-  $("[data-f=tv]", el).onchange = (e) => (st.tv = e.target.value);
-  $("[data-f=action]", el).onchange = (e) => { st.action = e.target.value; st.value = ""; draw(); };
-  $(".x", el).onclick = () => { editingPreset.steps.splice(i, 1); drawSteps(); };
-  draw();
-  return el;
-}
-function drawSteps() {
-  const box = $("#peSteps"); box.innerHTML = "";
-  editingPreset.steps.forEach((st, i) => box.appendChild(stepRow(st, i)));
-  if (!editingPreset.steps.length) box.innerHTML = '<p class="hint">No steps yet.</p>';
-}
-async function openPreset(p) {
-  if (!catalog.length) await loadCatalog();
-  editingPreset = p ? JSON.parse(JSON.stringify(p)) : { name: "", steps: [{ tv: "all", action: "poweron", value: "" }, { tv: "all", action: "wait", value: "5" }] };
-  $("#peTitle").textContent = p ? `Edit ${p.name}` : "New preset";
-  $("#peName").value = editingPreset.name; $("#peDelete").hidden = !p;
-  drawSteps();
-  $("#pSheet").classList.add("open"); $("#pSheet").setAttribute("aria-hidden", "false");
-}
-function closePreset() { $("#pSheet").classList.remove("open"); $("#pSheet").setAttribute("aria-hidden", "true"); editingPreset = null; }
-$("#peClose").onclick = closePreset;
-$("#pSheet").addEventListener("click", (e) => { if (e.target.id === "pSheet") closePreset(); });
-$("#peAdd").onclick = () => { editingPreset.steps.push({ tv: targets()[0] || "all", action: "app", value: (catalog[0] || {}).key || "" }); drawSteps(); };
-$("#peSave").onclick = async () => {
-  const name = $("#peName").value.trim();
-  if (!name) return toast("Give the preset a name", true);
-  const body = { name, steps: editingPreset.steps };
-  try {
-    if (editingPreset.id) await api(`/api/presets/${editingPreset.id}`, { method: "PUT", body });
-    else await api("/api/presets", { method: "POST", body });
-    toast(`${name} saved`); closePreset(); loadPresets();
-  } catch (e) { toast(e.message, true); }
-};
-$("#peTest").onclick = async () => {
-  const name = $("#peName").value.trim() || "Test";
-  try {
-    toast(`Testing ${name}…`);
-    const r = await api("/api/presets/test", { method: "POST", body: { steps: editingPreset.steps } });
-    report(r.results, "Test done");
-  } catch (e) { toast(e.message, true); }
-};
-$("#peDelete").onclick = async () => {
-  if (!editingPreset.id || !confirm(`Delete ${editingPreset.name}?`)) return;
-  await api(`/api/presets/${editingPreset.id}`, { method: "DELETE" }); closePreset(); loadPresets();
-};
-
-// ---------- voice / typed commands ----------
-function renderExamples() {
-  const ex = [...presets.slice(0, 2).map((p) => p.name)];
-  const r = tvs.find((t) => t.type === "roku"); if (r) ex.push(`YouTube on the ${r.name}`);
-  ex.push("Turn off all TVs"); if (lightList.length) ex.push("Lights off"); if (sonosGroups.length) ex.push("Sonos volume 30");
-  $("#examples").innerHTML = "";
-  for (const e of ex) { const b = document.createElement("button"); b.textContent = e; b.onclick = () => runCommand(e); $("#examples").appendChild(b); }
-}
-async function runCommand(text) {
-  text = (text || "").trim(); if (!text) return;
-  buzz();
-  try {
-    const r = await api("/api/command", { method: "POST", body: { text, ids: targets() } });
-    report(r.results || [], r.did); $("#cmdIn").value = "";
-    setTimeout(() => refreshStatus(false), 3000);
-  } catch (e) { toast(e.message, true); }
-}
-$("#cmdGo").onclick = () => runCommand($("#cmdIn").value);
-$("#cmdIn").addEventListener("keydown", (e) => { if (e.key === "Enter") runCommand($("#cmdIn").value); });
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-$("#micBtn").onclick = () => {
-  if (SR && window.isSecureContext) {
-    const rec = new SR(); rec.lang = "en-US"; rec.interimResults = false; rec.maxAlternatives = 1;
-    const mic = $("#micBtn"); mic.classList.add("listening");
-    rec.onresult = (e) => { const t = e.results[0][0].transcript; $("#cmdIn").value = t; runCommand(t); };
-    rec.onerror = () => toast("Didn't hear anything. Try again or type it.", true);
-    rec.onend = () => mic.classList.remove("listening");
-    try { rec.start(); } catch { mic.classList.remove("listening"); }
-  } else {
-    // Browsers only allow the built-in mic on https pages. The keyboard's dictation mic works everywhere.
-    $("#cmdIn").focus();
-    toast("Tap the mic on your keyboard, say the command, then Go");
-  }
-};
-
-
-// ---------- Sonos speakers ----------
-const escH = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const ICON = {
-  prev: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>',
-  next: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>',
-  play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg>',
-  pause: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>',
-  spk: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg>',
-  muted: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>',
-};
-let sonosGroups = [], sonosBusyUntil = 0;
-async function loadSonos(quiet = true) {
-  if (Date.now() < sonosBusyUntil) return; // don't yank a slider someone is dragging
-  try { sonosGroups = (await api("/api/sonos")).groups; renderSonos(); renderExamples(); }
-  catch (e) { if (!quiet) toast(e.message, true); if (!sonosGroups.length) $("#sonos").innerHTML = `<div class="empty">${escH(e.message)}</div>`; }
-}
-function volRow(label, vol, muted, attrs, master) {
-  const v = vol == null ? 0 : vol;
-  return `<div class="vrow${master ? " master" : ""}"><div class="vl"><span>${escH(label)}</span><span class="vv">${vol == null ? "–" : v}</span></div>
-    <input type="range" min="0" max="100" value="${v}" style="--p:${v}%" ${attrs} aria-label="${escH(label)} volume">
-    <button class="mute" aria-pressed="${!!muted}" ${attrs} aria-label="Mute ${escH(label)}">${muted ? ICON.muted : ICON.spk}</button></div>`;
-}
-function renderSonos() {
-  const box = $("#sonos");
-  if (!sonosGroups.length) { box.innerHTML = '<div class="empty">No Sonos speakers found.</div>'; return; }
-  box.innerHTML = sonosGroups.map((g) => {
-    const playing = /PLAYING|TRANSITIONING/.test(g.state || "");
-        const multi = g.members.length > 1;
-    const shuffle = /SHUFFLE/.test(g.playMode || ""), rep = /REPEAT_ONE/.test(g.playMode || "") ? "one" : /REPEAT_ALL|^SHUFFLE$/.test(g.playMode || "") ? "all" : "off";
-    const art = g.art ? `<img src="${escH(g.art)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'noart'}))">` : '<div class="noart"></div>';
-    return `<div class="sgroup" data-g="${escH(g.id)}">
-      <div class="sg-top"><div class="sg-name">${escH(g.name)}</div>
-        <div class="sg-tr"><button data-tr="previous" aria-label="Previous">${ICON.prev}</button><button data-tr="toggle" aria-label="${playing ? "Pause" : "Play"}">${playing ? ICON.pause : ICON.play}</button><button data-tr="next" aria-label="Next">${ICON.next}</button></div></div>
-      <div class="np">${art}<div style="min-width:0"><div class="t">${escH(g.title || (playing ? "Playing" : "Nothing playing"))}</div><div class="a">${escH([g.artist, g.album].filter(Boolean).join(" · "))}</div></div></div>
-      ${g.duration > 0 ? `<div class="prog"><span class="pc">${fmtT(g.position)}</span><input type="range" class="seek" min="0" max="${g.duration}" value="${g.position}" style="--p:${(g.position / g.duration) * 100}%" data-seek="${escH(g.id)}" aria-label="Song position"><span>${fmtT(g.duration)}</span></div>` : ""}
-      <div class="modes">
-        ${g.isQueue ? `<button data-shuffle="${shuffle ? 0 : 1}" data-rep="${rep}" aria-pressed="${shuffle}">Shuffle</button><button data-repeat="${rep}" data-sh="${shuffle ? 1 : 0}" aria-pressed="${rep !== "off"}">${rep === "one" ? "Repeat 1" : "Repeat"}</button>` : ""}
-        <span class="grow"></span>${g.tvMember ? `<button data-input="tv" data-uuid2="${escH(g.tvMember)}" aria-pressed="${!!g.isTv}">TV</button>` : ""}${g.lineInMember ? `<button data-input="linein" data-uuid2="${escH(g.lineInMember)}" aria-pressed="${!!g.isLineIn}">Line-in</button>` : ""}<button class="music" data-music="${escH(g.id)}">Music</button>
+  return `
+  <div class="tv-card ${cardClass}" id="card-${tv.id}">
+    <div class="card-header">
+      <div class="card-title-group">
+        <span class="device-badge ${badgeClass}">${badgeLabel}</span>
+        <div>
+          <div class="tv-name">${escHtml(tv.name)}</div>
+          <div class="tv-ip">${escHtml(tv.ip)}</div>
+        </div>
       </div>
-      ${multi ? volRow("Group volume", g.volume, g.members.every((m) => m.muted), `data-group="${escH(g.id)}"`, true) : ""}
-      ${g.members.map((m) => volRow(multi ? m.name : "Volume", m.volume, m.muted, `data-uuid="${escH(m.uuid)}"`)).join("")}
-      <div class="mini" style="justify-content:flex-end;padding:4px 0"><button data-edit="${escH(g.id)}">${multi ? "Change group" : "Group with…"}</button></div>
-    </div>`;
-  }).join("");
-}
-const sendVol = {};
-$("#sonos").addEventListener("input", (e) => {
-  const r = e.target; if (r.type !== "range") return;
-  if (r.dataset.seek) { sonosBusyUntil = Date.now() + 2500; r.style.setProperty("--p", (r.value / r.max) * 100 + "%"); r.closest(".prog").querySelector(".pc").textContent = fmtT(r.value); return; }
-  sonosBusyUntil = Date.now() + 2500;
-  r.style.setProperty("--p", r.value + "%"); r.closest(".vrow").querySelector(".vv").textContent = r.value;
-  const key = r.dataset.group || r.dataset.uuid;
-  clearTimeout(sendVol[key]);
-  sendVol[key] = setTimeout(() => api("/api/sonos/volume", { method: "POST", body: { group: r.dataset.group, uuid: r.dataset.uuid, volume: Number(r.value) } })
-    .then(() => { if (r.dataset.group) setTimeout(() => { sonosBusyUntil = 0; loadSonos(); }, 400); }).catch((err) => toast(err.message, true)), 180);
-});
-$("#sonos").addEventListener("click", async (e) => {
-  const b = e.target.closest("button"); if (!b) return; buzz();
-  const gid = b.closest(".sgroup")?.dataset.g;
-  try {
-    if (b.dataset.tr) { await api("/api/sonos/transport", { method: "POST", body: { group: gid, action: b.dataset.tr } }); setTimeout(() => loadSonos(), 700); }
-    else if (b.dataset.shuffle !== undefined) { await api("/api/sonos/playmode", { method: "POST", body: { group: gid, shuffle: b.dataset.shuffle === "1", repeat: b.dataset.rep } }); loadSonos(); }
-    else if (b.dataset.repeat !== undefined) { const nx = { off: "all", all: "one", one: "off" }[b.dataset.repeat]; await api("/api/sonos/playmode", { method: "POST", body: { group: gid, shuffle: b.dataset.sh === "1", repeat: nx } }); loadSonos(); }
-    else if (b.dataset.input) { const r = await api("/api/sonos/input", { method: "POST", body: { uuid: b.dataset.uuid2, kind: b.dataset.input } }); toast(r.did); setTimeout(() => loadSonos(), 1200); }
-    else if (b.dataset.music) openMusic(b.dataset.music);
-    else if (b.classList.contains("mute")) {
-      const m = b.getAttribute("aria-pressed") !== "true";
-      await api("/api/sonos/mute", { method: "POST", body: { group: b.dataset.group, uuid: b.dataset.uuid, mute: m } }); loadSonos();
-    } else if (b.dataset.edit) openGroup(b.dataset.edit);
-  } catch (err) { toast(err.message, true); }
-});
-$("#sRefresh").onclick = () => { buzz(); loadSonos(false); };
-$("#sGroupAll").onclick = async () => {
-  buzz();
-  try { await api("/api/sonos/all", { method: "POST", body: {} }); toast("All speakers grouped"); setTimeout(() => loadSonos(), 1200); }
-  catch (e) { toast(e.message, true); }
-};
-let groupEditing = null;
-function openGroup(gid) {
-  const g = sonosGroups.find((x) => x.id === gid); if (!g) return;
-  groupEditing = g;
-  $("#gTitle").textContent = `Play with ${g.coordinator.name}`;
-  const all = sonosGroups.flatMap((x) => x.members.map((m) => ({ ...m, inHere: x.id === gid })));
-  $("#gChecks").innerHTML = all.map((m) => `<label><input type="checkbox" value="${escH(m.uuid)}" ${m.inHere ? "checked" : ""} ${m.uuid === g.coordinator.uuid ? "disabled" : ""}> ${escH(m.name)}</label>`).join("");
-  $("#gSheet").classList.add("open"); $("#gSheet").setAttribute("aria-hidden", "false");
-}
-function closeGroup() { $("#gSheet").classList.remove("open"); $("#gSheet").setAttribute("aria-hidden", "true"); }
-$("#gClose").onclick = closeGroup;
-$("#gSheet").addEventListener("click", (e) => { if (e.target.id === "gSheet") closeGroup(); });
-$("#gSave").onclick = async () => {
-  const g = groupEditing; const btn = $("#gSave"); btn.disabled = true; btn.textContent = "Grouping…";
-  try {
-    for (const c of $("#gChecks").querySelectorAll("input:not([disabled])")) {
-      const was = g.members.some((m) => m.uuid === c.value);
-      if (c.checked && !was) await api("/api/sonos/join", { method: "POST", body: { uuid: c.value, to: g.id } });
-      if (!c.checked && was) await api("/api/sonos/leave", { method: "POST", body: { uuid: c.value } });
-    }
-    closeGroup(); setTimeout(() => loadSonos(false), 900);
-  } catch (e) { toast(e.message, true); }
-  btn.disabled = false; btn.textContent = "Done";
-};
-
-// ---------- lights ----------
-let lightList = [], lightEditing = null;
-const SWATCHES = ["#ffffff", "#ffd28a", "#ff0000", "#ff6a00", "#ffd000", "#00ff00", "#00c8a0", "#00ffff", "#0060ff", "#8000ff", "#ff00ff", "#ff3399"];
-const rgbHex = (l) => "#" + [l.r, l.g, l.b].map((v) => (v || 0).toString(16).padStart(2, "0")).join("");
-async function loadLights() {
-  try { lightList = (await api("/api/lights")).lights; renderLights(); renderExamples(); } catch (e) { toast(e.message, true); }
-}
-function renderLights() {
-  const box = $("#lights");
-  if (!lightList.length) { box.innerHTML = '<div class="empty">Tap Control all → Find new lights to look for your MagicLight lights.</div>'; return; }
-  box.innerHTML = lightList.map((l) => `<button class="light${l.on ? " on" : ""}${l.online ? "" : " offline"}" data-id="${escH(l.id)}" style="--lc:${l.online && (l.r || l.g || l.b) ? rgbHex(l) : "#ffd76a"}">
-    <span class="bulb"></span><span style="min-width:0"><span class="ln">${escH(l.name)}</span><span class="ls">${l.online ? (l.on ? "On" : "Off") : "Offline"}</span></span>
-    <span class="more" data-more="${escH(l.id)}" aria-label="Edit ${escH(l.name)}">⋯</span></button>`).join("");
-}
-$("#lights").addEventListener("click", async (e) => {
-  const tile = e.target.closest(".light"); if (!tile) return; buzz();
-  const l = lightList.find((x) => x.id === tile.dataset.id);
-  if (e.target.closest("[data-more]") || !l.online) return openLight(l);
-  l.on = !l.on; renderLights();
-  try { await api(`/api/lights/${l.id}`, { method: "POST", body: { on: l.on } }); } catch (err) { toast(err.message, true); l.on = !l.on; renderLights(); }
-});
-async function allLights(on) {
-  buzz();
-  try { const r = await api("/api/lights/all", { method: "POST", body: { on } }); toast(r.failed ? `${r.failed} light(s) didn't answer` : on ? "Lights on" : "Lights off", !!r.failed); loadLights(); }
-  catch (e) { toast(e.message, true); }
-}
-$("#lAllOn").onclick = () => allLights(true);
-$("#lAllOff").onclick = () => allLights(false);
-$("#lScan").onclick = async () => {
-  buzz(); toast("Looking for lights…");
-  try { const r = await api("/api/lights/scan", { method: "POST" }); toast(r.added ? `Found ${r.added} new light(s). Tap ⋯ to name them.` : `Found ${r.found} light(s), nothing new`); loadLights(); }
-  catch (e) { toast(e.message, true); }
-};
-function openLight(l) {
-  lightEditing = l;
-  $("#lTitle").textContent = l.name; $("#lName").value = l.name;
-  $("#lInfo").textContent = `(${l.ip}${l.mac ? " · " + l.mac.toUpperCase() : ""}${l.online ? "" : " · not answering"})`;
-  $("#lColor").value = l.online && (l.r || l.g || l.b) ? rgbHex(l) : "#ffffff";
-  const bri = l.brightness || 100; $("#lBri").value = bri; $("#lBri").style.setProperty("--p", bri + "%"); $("#lBriVal").textContent = bri + "%";
-  $("#lSheet").classList.add("open"); $("#lSheet").setAttribute("aria-hidden", "false");
-}
-function closeLight() {
-  const l = lightEditing; const n = $("#lName").value.trim();
-  if (l && n && n !== l.name) api(`/api/lights/${l.id}`, { method: "POST", body: { name: n } }).then(loadLights);
-  $("#lSheet").classList.remove("open"); $("#lSheet").setAttribute("aria-hidden", "true"); setTimeout(loadLights, 300);
-}
-$("#lClose").onclick = closeLight;
-$("#lSheet").addEventListener("click", (e) => { if (e.target.id === "lSheet") closeLight(); });
-const lightDo = (body, msg) => api(`/api/lights/${lightEditing.id}`, { method: "POST", body }).then(() => msg && toast(msg)).catch((e) => toast(e.message, true));
-$("#lSwatches").innerHTML = SWATCHES.map((c) => `<button style="background:${c}" data-c="${c}" aria-label="Color ${c}"></button>`).join("");
-$("#lSwatches").onclick = (e) => { const c = e.target.dataset.c; if (!c) return; buzz(); $("#lColor").value = c; lightDo({ on: true, color: c, brightness: Number($("#lBri").value) }); };
-$("#lColor").addEventListener("change", (e) => lightDo({ on: true, color: e.target.value, brightness: Number($("#lBri").value) }));
-let briT;
-$("#lBri").addEventListener("input", (e) => {
-  const v = e.target.value; e.target.style.setProperty("--p", v + "%"); $("#lBriVal").textContent = v + "%";
-  clearTimeout(briT); briT = setTimeout(() => lightDo({ on: true, color: $("#lColor").value, brightness: Number(v) }), 200);
-});
-$("#lBlink").onclick = () => { buzz(); lightDo({ blink: true }, "Blinking…"); };
-$("#lOn").onclick = () => lightDo({ on: true }, "On");
-$("#lOff").onclick = () => lightDo({ on: false }, "Off");
-$("#lDelete").onclick = async () => {
-  if (!confirm(`Remove ${lightEditing.name} from this app? (Find will add it back.)`)) return;
-  await api(`/api/lights/${lightEditing.id}`, { method: "DELETE" }); lightEditing = null; closeLight();
-};
-loadSonos(); loadLights();
-setInterval(() => { if (!document.hidden) { loadSonos(); } }, 10000);
-document.addEventListener("visibilitychange", () => { if (!document.hidden) { loadSonos(); loadLights(); } });
-
-
-// ---------- now playing ticker, music browser, Spotify ----------
-const fmtT = (n) => { n = Math.max(0, Math.round(Number(n) || 0)); const h = Math.floor(n / 3600), m = Math.floor(n / 60) % 60, sec = String(n % 60).padStart(2, "0"); return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`; };
-$("#sonos").addEventListener("change", async (e) => {
-  const r = e.target; if (!r.dataset.seek) return;
-  try { await api("/api/sonos/seek", { method: "POST", body: { group: r.dataset.seek, seconds: Number(r.value) } }); } catch (err) { toast(err.message, true); }
-  sonosBusyUntil = 0; setTimeout(() => loadSonos(), 500);
-});
-setInterval(() => { // move progress bars between refreshes
-  if (Date.now() < sonosBusyUntil) return;
-  for (const g of sonosGroups) {
-    if (!/PLAYING/.test(g.state || "") || !(g.duration > 0)) continue;
-    g.position = Math.min(g.duration, (g.position || 0) + 1);
-    const r = document.querySelector(`.sgroup[data-g="${CSS.escape(g.id)}"] .seek`);
-    if (r) { r.value = g.position; r.style.setProperty("--p", (g.position / g.duration) * 100 + "%"); r.closest(".prog").querySelector(".pc").textContent = fmtT(g.position); }
-  }
-}, 1000);
-
-let musicGroup = null, musicTab = "fav", spInfo = { connected: false }, spSearchT;
-const artImg = (u) => (u ? `<img src="${escH(u)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'noart'}))">` : '<div class="noart"></div>');
-const ACTS = '<span class="acts"><span data-mode="next">Next</span><span data-mode="add">+ Queue</span></span>';
-function openMusic(gid) {
-  musicGroup = gid; const g = sonosGroups.find((x) => x.id === gid);
-  $("#mTitle").textContent = g ? `Play on ${g.name}` : "Music";
-  $("#mSheet").classList.add("open"); $("#mSheet").setAttribute("aria-hidden", "false");
-  showTab(musicTab);
-}
-function closeMusic() { $("#mSheet").classList.remove("open"); $("#mSheet").setAttribute("aria-hidden", "true"); setTimeout(() => loadSonos(), 300); }
-$("#mClose").onclick = closeMusic;
-$("#mSheet").addEventListener("click", (e) => { if (e.target.id === "mSheet") closeMusic(); });
-document.querySelectorAll("[data-mt]").forEach((b) => (b.onclick = () => showTab(b.dataset.mt)));
-function showTab(t) {
-  musicTab = t;
-  document.querySelectorAll("[data-mt]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.mt === t)));
-  const body = $("#mBody"); body.innerHTML = '<div class="empty">Loading…</div>';
-  ({ fav: tabSonosList.bind(null, "favorites"), lists: tabSonosList.bind(null, "playlists"), queue: tabQueue, spotify: tabSpotify })[t]();
-}
-async function tabSonosList(kind) {
-  try {
-    const r = await api(`/api/sonos/${kind}`);
-    if (!r.items.length) { $("#mBody").innerHTML = `<div class="empty">${kind === "favorites" ? "No Sonos favorites yet. In the Sonos app, tap ⋯ on a song, playlist or station and choose Add to My Sonos / Favorites, and it shows up here." : "No saved Sonos playlists."}</div>`; return; }
-    $("#mBody").innerHTML = `<div class="mlist">${r.items.map((it, i) => `<button class="mrow" data-src="${kind}" data-i="${i}">${artImg(it.art)}<span style="min-width:0"><div class="t">${escH(it.title)}</div><div class="a">${escH(it.artist || it.album || "")}</div></span>${/radio|stream|hls|htastream/i.test(it.uri) ? "" : ACTS}</button>`).join("")}</div>`;
-  } catch (e) { $("#mBody").innerHTML = `<div class="empty">${escH(e.message)}</div>`; }
-}
-async function tabQueue() {
-  try {
-    const r = await api(`/api/sonos/queue?group=${encodeURIComponent(musicGroup)}`);
-    if (!r.items.length) { $("#mBody").innerHTML = '<div class="empty">The queue is empty. Pick something from Favorites or Spotify.</div>'; return; }
-    $("#mBody").innerHTML = `<div class="mini" style="justify-content:flex-end;margin-bottom:6px"><button id="qClear">Clear queue</button></div><div class="mlist">${r.items.map((it, i) => `<button class="mrow${r.current === i + 1 ? " cur" : ""}" data-q="${i + 1}">${artImg(it.art)}<span style="min-width:0"><div class="t">${i + 1}. ${escH(it.title)}</div><div class="a">${escH(it.artist || "")}</div></span><span class="acts"><span data-qrm="${i + 1}">Remove</span></span></button>`).join("")}</div>`;
-    $("#qClear").onclick = async () => { await api("/api/sonos/queue/clear", { method: "POST", body: { group: musicGroup } }).catch((e) => toast(e.message, true)); tabQueue(); };
-    const cur = $("#mBody").querySelector(".cur"); if (cur) cur.scrollIntoView({ block: "center" });
-  } catch (e) { $("#mBody").innerHTML = `<div class="empty">${escH(e.message)}</div>`; }
-}
-async function tabSpotify() {
-  try { spInfo = await api("/api/spotify"); } catch {}
-  const link = `<div class="mhead">Paste a Spotify link</div><div class="srow"><input id="spLink" placeholder="https://open.spotify.com/…" autocomplete="off"><button class="btn" id="spLinkGo">Play</button></div>`;
-  if (!spInfo.connected) {
-    const onPc = ["127.0.0.1", "localhost"].includes(location.hostname);
-    $("#mBody").innerHTML = `${link}<p class="hint">Works with no setup: in Spotify tap Share → Copy link on any song, album or playlist, paste it here. (Spotify has to be added in the Sonos app.)</p>
-      <div class="mhead">Connect Spotify to search</div>
-      <p class="hint">One-time setup, done on your PC. Spotify requires the account to have Premium.</p>
-      <ol class="steps-list">
-        <li>Go to <b>developer.spotify.com/dashboard</b>, log in, tap <b>Create app</b>.</li>
-        <li>Name: <code>TV Remote Hub</code>. Redirect URI: <code>${escH(spInfo.redirect || "")}</code> (tap Add). Check <b>Web API</b>, agree, Save.</li>
-        <li>Copy the <b>Client ID</b> and paste it here:</li>
-      </ol>
-      <div class="srow"><input id="spId" placeholder="Client ID" value="${escH(spInfo.clientId || "")}" autocomplete="off"><button class="btn ghost" id="spSave">Save</button></div>
-      ${spInfo.clientId ? (onPc ? `<a class="btn" style="display:block;text-align:center;text-decoration:none;margin-top:8px" href="/api/spotify/login">Log in with Spotify</a>` : `<p class="hint">Last step: on your PC, open <code>http://127.0.0.1:${location.port || 80}</code>, open Music → Spotify, and tap Log in with Spotify. Spotify only allows that login from the PC itself. After that it works on the iPad too.</p>`) : ""}`;
-    $("#spSave").onclick = async () => { try { await api("/api/spotify/setup", { method: "POST", body: { clientId: $("#spId").value } }); toast("Saved"); tabSpotify(); } catch (e) { toast(e.message, true); } };
-  } else {
-    $("#mBody").innerHTML = `<div class="srow"><input id="spQ" placeholder="Search songs, albums, playlists" autocomplete="off" enterkeyhint="search"></div><div id="spRes"></div>${link}
-      <p class="hint" style="margin-top:14px">Connected as ${escH(spInfo.user || "you")}. <a href="#" id="spOut" style="color:var(--muted)">Disconnect</a></p>`;
-    $("#spQ").addEventListener("input", () => { clearTimeout(spSearchT); spSearchT = setTimeout(spSearch, 400); });
-    $("#spOut").onclick = async (e) => { e.preventDefault(); if (!confirm("Disconnect Spotify?")) return; await api("/api/spotify/logout", { method: "POST" }); tabSpotify(); };
-    spHome();
-  }
-  $("#spLinkGo").onclick = () => playSpotify($("#spLink").value, "now");
-}
-const spRows = (list) => list.map((x) => `<button class="mrow" data-sp="${escH(x.uri)}" data-title="${escH(x.name)}">${artImg(x.art)}<span style="min-width:0"><div class="t">${escH(x.name)}</div><div class="a">${escH(x.sub || x.type)}</div></span>${ACTS}</button>`).join("");
-async function spHome() {
-  const box = $("#spRes"); box.innerHTML = '<div class="empty">Loading your playlists…</div>';
-  try {
-    const [pl, rc] = await Promise.all([api("/api/spotify/playlists"), api("/api/spotify/recent").catch(() => ({ tracks: [] }))]);
-    box.innerHTML = (rc.tracks.length ? `<div class="mhead">Recently played</div><div class="mlist">${spRows(rc.tracks.slice(0, 6))}</div>` : "") + `<div class="mhead">Your playlists</div><div class="mlist">${spRows(pl.playlists) || '<div class="empty">No playlists</div>'}</div>`;
-  } catch (e) { box.innerHTML = `<div class="empty">${escH(e.message)}</div>`; }
-}
-async function spSearch() {
-  const q = $("#spQ").value.trim(); if (!q) return spHome();
-  const box = $("#spRes");
-  try {
-    const r = await api(`/api/spotify/search?q=${encodeURIComponent(q)}`);
-    box.innerHTML = [["Songs", r.tracks], ["Albums", r.albums], ["Playlists", r.playlists]].filter(([, l]) => l.length).map(([h, l]) => `<div class="mhead">${h}</div><div class="mlist">${spRows(l)}</div>`).join("") || '<div class="empty">Nothing found</div>';
-  } catch (e) { box.innerHTML = `<div class="empty">${escH(e.message)}</div>`; }
-}
-async function playSpotify(link, mode, title) {
-  if (!link) return; buzz();
-  try { const r = await api("/api/sonos/spotify", { method: "POST", body: { group: musicGroup, link, mode, title } }); toast(r.did); setTimeout(() => loadSonos(), 1200); }
-  catch (e) { toast(e.message, true); }
-}
-$("#mBody").addEventListener("click", async (e) => {
-  const row = e.target.closest(".mrow"); if (!row) return;
-  const mode = e.target.closest("[data-mode]")?.dataset.mode || "now";
-  buzz();
-  try {
-    if (row.dataset.sp) return playSpotify(row.dataset.sp, mode, row.dataset.title);
-    if (row.dataset.src) { const r = await api("/api/sonos/play-item", { method: "POST", body: { group: musicGroup, source: row.dataset.src, index: Number(row.dataset.i), mode } }); toast(r.did); setTimeout(() => loadSonos(), 1200); return; }
-    const rm = e.target.closest("[data-qrm]");
-    if (rm) { await api("/api/sonos/queue/remove", { method: "POST", body: { group: musicGroup, track: Number(rm.dataset.qrm) } }); return tabQueue(); }
-    if (row.dataset.q) { await api("/api/sonos/queue/jump", { method: "POST", body: { group: musicGroup, track: Number(row.dataset.q) } }); setTimeout(tabQueue, 600); setTimeout(() => loadSonos(), 800); }
-  } catch (err) { toast(err.message, true); }
-});
-
-// Spotify Connect: whatever your Spotify account is playing (phone, PC, Sonos…)
-let spPlayer = null;
-async function loadSpotifyNow() {
-  try { spInfo = await api("/api/spotify"); } catch { return; }
-  const box = $("#spNow");
-  if (!spInfo.connected) { box.innerHTML = ""; return; }
-  try { spPlayer = await api("/api/spotify/player"); } catch { box.innerHTML = ""; return; }
-  const p = spPlayer;
-  if (!p.track && !p.devices.length) { box.innerHTML = ""; return; }
-  box.innerHTML = `<div class="spcard">
-    <div class="sg-top"><div class="sg-name">Spotify${p.device ? " · " + escH(p.device.name) : ""}</div>
-      <div class="sg-tr"><button data-sc="previous" aria-label="Previous">${ICON.prev}</button><button data-sc="${p.playing ? "pause" : "play"}" aria-label="${p.playing ? "Pause" : "Play"}">${p.playing ? ICON.pause : ICON.play}</button><button data-sc="next" aria-label="Next">${ICON.next}</button></div></div>
-    ${p.track ? `<div class="np">${artImg(p.track.art)}<div style="min-width:0"><div class="t">${escH(p.track.name)}</div><div class="a">${escH(p.track.sub)}</div></div></div>` : '<div class="sg-np">Nothing playing</div>'}
-    ${p.device && p.device.volume != null ? volRow("Spotify volume", p.device.volume, false, 'data-spvol="1"').replace(/<button class="mute"[\s\S]*?<\/button>/, "") : ""}
-    <select id="spDev" aria-label="Play Spotify on">${p.devices.length ? p.devices.map((d) => `<option value="${escH(d.id)}" ${d.active ? "selected" : ""}>Play on: ${escH(d.name)}</option>`).join("") : "<option>No devices online</option>"}</select>
+      <div class="card-header-actions">
+        <div class="status-dot" id="dot-${tv.id}" title="Connection status"></div>
+        <button class="icon-btn" onclick="pingOne('${tv.id}')" title="Test connection">🔍</button>
+        <button class="icon-btn" onclick="openEditModal('${tv.id}')" title="Edit">✏️</button>
+        <button class="icon-btn btn-danger" onclick="deleteTV('${tv.id}')" title="Delete">🗑</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="youtube-row">
+        <button class="yt-card-btn" onclick="sendYouTube('${tv.id}')">
+          ▶ Open YouTube
+        </button>
+      </div>
+      <div class="remote">
+        <!-- Row 1: Power + Home + Back -->
+        <div class="remote-row">
+          <button class="rkey power" onclick="send('${tv.id}','power')">⏻ Power</button>
+          <button class="rkey" onclick="send('${tv.id}','home')">⌂ Home</button>
+          <button class="rkey" onclick="send('${tv.id}','back')">↩ Back</button>
+        </div>
+        <!-- D-Pad -->
+        <div class="dpad">
+          <div class="rkey dpad-empty"></div>
+          <button class="rkey nav" onclick="send('${tv.id}','up')">▲</button>
+          <div class="rkey dpad-empty"></div>
+          <button class="rkey nav" onclick="send('${tv.id}','left')">◀</button>
+          <button class="rkey ok" onclick="send('${tv.id}','ok')">OK</button>
+          <button class="rkey nav" onclick="send('${tv.id}','right')">▶</button>
+          <div class="rkey dpad-empty"></div>
+          <button class="rkey nav" onclick="send('${tv.id}','down')">▼</button>
+          <div class="rkey dpad-empty"></div>
+        </div>
+        <!-- Row 3: Volume + Mute -->
+        <div class="remote-row">
+          <button class="rkey" onclick="send('${tv.id}','volumeup')">🔊 Vol+</button>
+          <button class="rkey mute" onclick="send('${tv.id}','mute')">🔇 Mute</button>
+          <button class="rkey" onclick="send('${tv.id}','volumedown')">🔉 Vol−</button>
+        </div>
+      </div>
+    </div>
   </div>`;
 }
-$("#spNow").addEventListener("click", async (e) => {
-  const b = e.target.closest("[data-sc]"); if (!b) return; buzz();
-  try { await api("/api/spotify/control", { method: "POST", body: { action: b.dataset.sc } }); setTimeout(loadSpotifyNow, 600); } catch (err) { toast(err.message, true); }
-});
-let spVolT;
-$("#spNow").addEventListener("input", (e) => {
-  const r = e.target; if (!r.dataset.spvol) return;
-  r.style.setProperty("--p", r.value + "%"); r.closest(".vrow").querySelector(".vv").textContent = r.value;
-  clearTimeout(spVolT); spVolT = setTimeout(() => api("/api/spotify/control", { method: "POST", body: { action: "volume", volume: Number(r.value) } }).catch((err) => toast(err.message, true)), 250);
-});
-$("#spNow").addEventListener("change", async (e) => {
-  if (e.target.id !== "spDev" || !e.target.value) return;
-  try { await api("/api/spotify/control", { method: "POST", body: { action: "transfer", device: e.target.value } }); toast("Moved Spotify"); setTimeout(loadSpotifyNow, 1200); } catch (err) { toast(err.message, true); }
-});
-loadSpotifyNow();
-setInterval(() => { if (!document.hidden && !document.querySelector(".sheet.open")) loadSpotifyNow(); }, 15000);
 
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
-// ---------- lights to the music ----------
-const X = { fx: "jump", color: "#ff0040", sens: 60, running: false, src: null, before: [], ids: [], hue: 0, env: 0, hist: [], lastBeat: 0, lastSend: 0, inflight: 0, taps: [], tapBpm: 0, tapPhase: 0, wake: null, raf: 0, ctx: null, stream: null, analyser: null, bins: null, beatOn: 0, beats: [], flashUntil: 0 };
-try { Object.assign(X, JSON.parse(localStorage.getItem("musicSync") || "{}"), { running: false, taps: [], beats: [], hist: [] }); } catch {}
-const saveX = () => { try { localStorage.setItem("musicSync", JSON.stringify({ fx: X.fx, color: X.color, sens: X.sens, ids: X.ids })); } catch {} };
-function hsv(h, s, v) { h = ((h % 360) + 360) % 360 / 60; const c = v * s, x = c * (1 - Math.abs((h % 2) - 1)), m = v - c; const [r, g, b] = h < 1 ? [c, x, 0] : h < 2 ? [x, c, 0] : h < 3 ? [0, c, x] : h < 4 ? [0, x, c] : h < 5 ? [x, 0, c] : [c, 0, x]; return "#" + [r, g, b].map((n) => Math.round((n + m) * 255).toString(16).padStart(2, "0")).join(""); }
-const hexScale = (hex, k) => { const n = parseInt(hex.slice(1), 16); return "#" + [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.round(v * k).toString(16).padStart(2, "0")).join(""); };
-async function openMusicSync() {
-  const online = lightList.filter((l) => l.online);
-  if (!X.ids.length) X.ids = online.map((l) => l.id);
-  $("#xLights").innerHTML = lightList.map((l) => `<label><input type="checkbox" value="${escH(l.id)}" ${X.ids.includes(l.id) && l.online ? "checked" : ""} ${l.online ? "" : "disabled"}> <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escH(l.name)}${l.online ? "" : " (offline)"}</span></label>`).join("") || '<div class="empty">Use Control all → Find new lights first.</div>';
-  $("#xSwatches").innerHTML = ["#ff0040", "#ff0000", "#ff6a00", "#ffd000", "#00ff00", "#00ffff", "#0060ff", "#8000ff", "#ff00ff", "#ffffff"].map((c) => `<button style="background:${c}" data-c="${c}" aria-label="${c}"></button>`).join("");
-  document.querySelectorAll("#xFx button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.fx === X.fx)));
-  $("#xColorWrap").hidden = X.fx !== "pulse";
-  $("#xSens").value = X.sens; $("#xSens").style.setProperty("--p", X.sens + "%"); $("#xSensVal").textContent = X.sens + "%";
-  const sec = $("#xSecure");
-  if (!window.isSecureContext) {
-    let port = 3443; try { const r = await api("/api/secure"); port = r.port; } catch {}
-    const url = `https://${location.hostname}:${port}/`;
-    sec.innerHTML = `<div class="warnbox">Browsers only let a page use the microphone on a secure (https) address. <a href="${url}">Open the secure version</a>. The first time, Safari shows "This connection is not private": tap <b>Show Details</b>, then <b>visit this website</b>, then Visit Website. It's your own PC, so that's safe. Then add that page to your Home Screen instead of this one. (Tap-along works right here without it.)</div>`;
-  } else sec.innerHTML = "";
-  $("#xSheet").classList.add("open"); $("#xSheet").setAttribute("aria-hidden", "false");
-}
-$("#lMusic").onclick = () => { buzz(); openMusicSync(); };
-$("#xClose").onclick = () => { $("#xSheet").classList.remove("open"); $("#xSheet").setAttribute("aria-hidden", "true"); };
-$("#xSheet").addEventListener("click", (e) => { if (e.target.id === "xSheet") $("#xClose").onclick(); });
-$("#xFx").onclick = (e) => { const b = e.target.closest("[data-fx]"); if (!b) return; X.fx = b.dataset.fx; saveX(); document.querySelectorAll("#xFx button").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); $("#xColorWrap").hidden = X.fx !== "pulse"; };
-$("#xSwatches").onclick = (e) => { if (e.target.dataset.c) { X.color = e.target.dataset.c; saveX(); buzz(); } };
-$("#xSens").oninput = (e) => { X.sens = Number(e.target.value); $("#xSensVal").textContent = X.sens + "%"; e.target.style.setProperty("--p", X.sens + "%"); saveX(); };
-$("#xLights").onchange = () => { X.ids = [...$("#xLights").querySelectorAll("input:checked")].map((i) => i.value); saveX(); };
-
-async function beginSync(src) {
-  X.ids = [...$("#xLights").querySelectorAll("input:checked")].map((i) => i.value); saveX();
-  if (!X.ids.length) { toast("Pick at least one light", true); return false; }
-  try { const r = await api("/api/lights/stream/start", { method: "POST", body: { ids: X.ids } }); X.before = r.before || []; } catch (e) { toast(e.message, true); return false; }
-  X.running = true; X.src = src; X.hist = []; X.env = 0; X.startedAt = Date.now(); X.lastBeatWall = Date.now();
-  syncIndicator();
-  try { X.wake = await navigator.wakeLock?.request("screen"); } catch {}
-  cancelAnimationFrame(X.raf); X.raf = requestAnimationFrame(syncFrame);
-  return true;
-}
-function syncIndicator() {
-  const on = X.running;
-  $("#lSyncOn").hidden = !on;
-  $("#lSyncOn").textContent = X.src === "tap" ? "● Tap-along on · Stop" : "● Mic on · Stop";
-  document.title = on && X.src === "mic" ? "🎙 TV Remote (listening)" : "TV Remote";
-}
-$("#lSyncOn").onclick = () => stopSync().then(() => toast("Microphone off"));
-// never leave the mic running by accident: stop after 5 quiet minutes or 3 hours total
-setInterval(() => {
-  if (!X.running || X.src !== "mic") return;
-  if (Date.now() - X.lastBeatWall > 5 * 60000) { stopSync(); toast("Music sync stopped: no music heard for 5 minutes"); }
-  else if (Date.now() - X.startedAt > 3 * 3600000) { stopSync(); toast("Music sync stopped after 3 hours"); }
-}, 30000);
-async function stopSync() {
-  X.running = false; cancelAnimationFrame(X.raf);
-  if (X.stream) { X.stream.getTracks().forEach((t) => t.stop()); X.stream = null; }
-  if (X.ctx) { X.ctx.close().catch(() => {}); X.ctx = null; }
-  try { await X.wake?.release(); } catch {} X.wake = null;
-  X.tapBpm = 0; X.taps = []; X.src = null; syncIndicator();
-  $("#xGo").textContent = "Start listening"; $("#xTap").textContent = "Tap here on the beat";
-  $("#xStatus").textContent = "Not listening"; $("#xMeter .fill").style.width = "0";
-  await api("/api/lights/stream/stop", { method: "POST", body: { before: X.before } }).catch(() => {});
-  setTimeout(loadLights, 500);
-}
-$("#xGo").onclick = async () => {
-  buzz();
-  if (X.running && X.src === "mic") return stopSync();
-  if (X.running) await stopSync();
-  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) { toast("The mic needs the secure version of this page. Use the link above, or tap along instead.", true); return; }
+// ── Send Command ──────────────────────────────────────────────────
+async function send(tvId, command) {
+  const tv = tvs.find(t => t.id === tvId);
   try {
-    X.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-  } catch (e) { toast("Couldn't use the microphone. Allow mic access for this page in Settings.", true); return; }
-  X.ctx = new (window.AudioContext || window.webkitAudioContext)();
-  const srcNode = X.ctx.createMediaStreamSource(X.stream);
-  X.analyser = X.ctx.createAnalyser(); X.analyser.fftSize = 1024; X.analyser.smoothingTimeConstant = 0.35;
-  srcNode.connect(X.analyser); X.bins = new Uint8Array(X.analyser.frequencyBinCount);
-  if (await beginSync("mic")) { $("#xGo").textContent = "Stop"; $("#xStatus").textContent = "Listening…"; }
-  else { X.stream.getTracks().forEach((t) => t.stop()); X.stream = null; }
-};
-$("#xTap").onclick = async () => {
-  buzz();
-  const now = performance.now();
-  if (X.running && X.src === "mic") { toast("Stop the mic first to use tap-along", true); return; }
-  X.taps = X.taps.filter((t) => now - t < 3000); X.taps.push(now);
-  if (X.taps.length >= 2) {
-    const gaps = X.taps.slice(1).map((t, i) => t - X.taps[i]).slice(-6);
-    X.tapBpm = 60000 / (gaps.reduce((a, b) => a + b, 0) / gaps.length); X.tapPhase = now;
-    if (!X.running) await beginSync("tap");
-    $("#xTap").textContent = `${Math.round(X.tapBpm)} BPM · tap to adjust`;
-    $("#xGo").textContent = "Stop"; $("#xGo").onclickTap = true;
-  } else $("#xTap").textContent = "Keep tapping…";
-  X.lastBeat = 0; onBeat(now);
-};
-// "Stop" also ends tap mode
-$("#xGo").addEventListener("click", () => { if (X.running && X.src === "tap") stopSync(); }, true);
-
-function onBeat(now) {
-  X.lastBeat = now; X.lastBeatWall = Date.now(); X.env = 1; X.beats.push(now); X.beats = X.beats.filter((t) => now - t < 8000);
-  X.hue = (X.hue + 97 + Math.random() * 40) % 360; X.flashUntil = now + 70;
-  const m = $("#xMeter"); m.classList.add("beat"); clearTimeout(X.beatOn); X.beatOn = setTimeout(() => m.classList.remove("beat"), 90);
-}
-function syncFrame(now) {
-  if (!X.running) return;
-  X.raf = requestAnimationFrame(syncFrame);
-  let level = 0;
-  if (X.src === "mic" && X.analyser) {
-    X.analyser.getByteFrequencyData(X.bins);
-    const hz = X.ctx.sampleRate / X.analyser.fftSize, band = (a, b) => { let s = 0, n = 0; for (let i = Math.max(1, Math.floor(a / hz)); i <= Math.ceil(b / hz) && i < X.bins.length; i++) { s += X.bins[i]; n++; } return n ? s / n / 255 : 0; };
-    const bass = band(35, 160); level = band(35, 6000);
-    X.hist.push(bass); if (X.hist.length > 60) X.hist.shift();
-    const avg = X.hist.reduce((a, b) => a + b, 0) / X.hist.length;
-    const need = 1.08 + (100 - X.sens) / 100 * 0.5, floor = 0.06 + (100 - X.sens) / 100 * 0.2;
-    if (X.hist.length > 20 && bass > avg * need && bass > floor && now - X.lastBeat > 230) onBeat(now);
-  } else if (X.src === "tap" && X.tapBpm) {
-    const period = 60000 / X.tapBpm;
-    if (now - X.lastBeat >= period - 8) onBeat(X.lastBeat ? X.lastBeat + period : now);
-    level = 0.4;
+    await api('POST', `/api/control/${tvId}/${command}`);
+    toast(`✓ ${command.toUpperCase()} → ${tv ? tv.name : tvId}`, 'success');
+  } catch (err) {
+    toast(`✗ ${tv ? tv.name : tvId}: ${err.message}`, 'error');
   }
-  X.env = Math.max(0, X.env - 0.045);
-  const bright = Math.min(1, 0.12 + 0.88 * Math.max(X.env, level * (0.6 + X.sens / 100)));
-  $("#xMeter .fill").style.width = Math.round(Math.max(level, X.env * 0.9) * 100) + "%";
-  if (X.beats.length > 3) { const g = X.beats.slice(1).map((t, i) => t - X.beats[i]).filter((d) => d > 250 && d < 1500); if (g.length) { g.sort((a, b) => a - b); $("#xStatus").textContent = `${X.src === "tap" ? "Tap-along" : "Listening"} · ~${Math.round(60000 / g[Math.floor(g.length / 2)])} BPM`; } }
-  if (now - X.lastSend < 60 || X.inflight > 1) return;
-  X.lastSend = now;
-  const n = X.ids.length;
-  const frames = X.ids.map((id, i) => {
-    let c;
-    if (X.fx === "pulse") c = hexScale(X.color, bright);
-    else if (X.fx === "jump") c = hsv(X.hue + (i * 360) / Math.max(1, n) * 0.35, 1, bright);
-    else if (X.fx === "rainbow") { X.hue = (X.hue + 0.6 + level * 4) % 360; c = hsv(X.hue + (i * 360) / Math.max(1, n), 1, Math.max(0.35, bright)); }
-    else c = now < X.flashUntil ? "#ffffff" : "#000000";
-    return { id, c };
-  });
-  X.inflight++;
-  fetch("/api/lights/stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ frames }), keepalive: true })
-    .catch(() => {}).finally(() => X.inflight--);
 }
-window.addEventListener("pagehide", () => { if (X.running) navigator.sendBeacon?.("/api/lights/stream/stop", new Blob([JSON.stringify({ before: X.before })], { type: "application/json" })); });
 
-
-// open the full Spotify player (app on iPad/phone, web player on PC). It remote-controls whatever Spotify is playing on Sonos.
-$("#sSpotify").onclick = () => {
-  buzz();
-  const mobile = /iPad|iPhone|Android/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  if (mobile) {
-    const t = setTimeout(() => { if (!document.hidden) window.open("https://open.spotify.com/", "_blank"); }, 1500);
-    document.addEventListener("visibilitychange", () => clearTimeout(t), { once: true });
-    location.href = "spotify://";
-  } else window.open("https://open.spotify.com/", "spotify");
-};
-
-// ---------- button feedback (vibrate on phones, optional click sound for the iPad) ----------
-const FB = { mode: "vibrate" };
-try { FB.mode = localStorage.getItem("feedback") || "vibrate"; } catch {}
-let fbCtx = null;
-function clickSound() {
+async function sendYouTube(tvId) {
+  const tv = tvs.find(t => t.id === tvId);
   try {
-    fbCtx = fbCtx || new (window.AudioContext || window.webkitAudioContext)();
-    const t = fbCtx.currentTime, o = fbCtx.createOscillator(), g = fbCtx.createGain();
-    o.type = "square"; o.frequency.setValueAtTime(1800, t); o.frequency.exponentialRampToValueAtTime(600, t + 0.03);
-    g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
-    o.connect(g).connect(fbCtx.destination); o.start(t); o.stop(t + 0.05);
-  } catch {}
-}
-const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-const TAPPABLE = "button, .light, .chip, .mrow, a.btn, [role=tab], select, input[type=checkbox], .scene, .swatches button";
-document.addEventListener("pointerdown", (e) => {
-  if (FB.mode === "off" || !e.target.closest(TAPPABLE)) return;
-  if ((FB.mode === "vibrate" || FB.mode === "both") && navigator.vibrate) navigator.vibrate(18);
-  if (FB.mode === "sound" || FB.mode === "both") clickSound();
-}, true);
-// iPhone (iOS 18+) has no vibrate API, but toggling a hidden switch gives a tiny tap. iPads have no vibration motor.
-document.addEventListener("click", (e) => {
-  if (!isIOS || !(FB.mode === "vibrate" || FB.mode === "both") || !e.target.closest(TAPPABLE) || e.target.closest(".hapt")) return;
-  try { $("#haptSw").closest("label").click(); } catch {}
-}, true);
-function renderFb() { document.querySelectorAll("#fbPick button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.fb === FB.mode))); }
-$("#fbPick").onclick = (e) => { const b = e.target.closest("[data-fb]"); if (!b) return; FB.mode = b.dataset.fb; try { localStorage.setItem("feedback", FB.mode); } catch {} renderFb(); if (FB.mode !== "off" && navigator.vibrate) navigator.vibrate(30); if (FB.mode === "sound" || FB.mode === "both") clickSound(); };
-renderFb();
-
-// ---------- control all lights ----------
-const A = { ids: null, spd: 60, bri: 100 };
-const A_SWATCH = ["#ff0000", "#ff3b00", "#ff8000", "#ffd000", "#80ff00", "#00ff40", "#00ffc0", "#00c8ff", "#0040ff", "#6a00ff", "#c000ff", "#ff00a0"];
-const A_WHITES = [["Warm white", "#ffb050"], ["Soft white", "#ffd8a0"], ["Daylight", "#ffffff"]];
-const A_FX = [["Color fade", "fade7", "linear-gradient(90deg,red,orange,yellow,lime,cyan,blue,violet)"], ["Color jump", "jump7", "repeating-linear-gradient(90deg,red 0 14%,lime 0 28%,blue 0 42%,yellow 0 56%,cyan 0 70%,violet 0 84%,white 0 100%)"],
-  ["Color strobe", "strobe7", "repeating-linear-gradient(90deg,#fff 0 8%,#222 0 16%)"], ["Red pulse", "fadeRed", "linear-gradient(90deg,#300,red,#300)"], ["Blue pulse", "fadeBlue", "linear-gradient(90deg,#003,#06f,#003)"],
-  ["Purple pulse", "fadePurple", "linear-gradient(90deg,#203,#a0f,#203)"], ["Green pulse", "fadeGreen", "linear-gradient(90deg,#030,lime,#030)"], ["Red ↔ Blue", "crossRB", "linear-gradient(90deg,red,blue)"],
-  ["Red ↔ Green", "crossRG", "linear-gradient(90deg,red,lime)"], ["Green ↔ Blue", "crossGB", "linear-gradient(90deg,lime,blue)"], ["White strobe", "strobeWhite", "repeating-linear-gradient(90deg,#fff 0 8%,#000 0 16%)"], ["Red strobe", "strobeRed", "repeating-linear-gradient(90deg,red 0 8%,#000 0 16%)"]];
-const BUILTIN_SCENES = [
-  { name: "Movie night", sub: "Dim warm", color: "#ff9a40", brightness: 15 },
-  { name: "Relax", sub: "Warm, half", color: "#ffb050", brightness: 45 },
-  { name: "Bright", sub: "Daylight, full", color: "#ffffff", brightness: 100 },
-  { name: "Party", sub: "Color jump, fast", effect: { pattern: "jump7", speed: 90 } },
-  { name: "Chill", sub: "Slow color fade", effect: { pattern: "fade7", speed: 25 } },
-  { name: "Night light", sub: "Red, very dim", color: "#ff2000", brightness: 6 },
-];
-let userScenes = [];
-try { userScenes = JSON.parse(localStorage.getItem("lightScenes") || "[]"); } catch {}
-const saveScenes = () => { try { localStorage.setItem("lightScenes", JSON.stringify(userScenes)); } catch {} };
-const aTargets = () => (A.ids && A.ids.length ? A.ids : lightList.filter((l) => l.online).map((l) => l.id));
-async function allDo(body, msg) {
-  try { const r = await api("/api/lights/all", { method: "POST", body: { ids: aTargets(), ...body } }); toast(r.failed ? `${r.failed} light(s) didn't answer` : msg, !!r.failed); setTimeout(loadLights, 600); }
-  catch (e) { toast(e.message, true); }
-}
-function renderAPick() {
-  const on = new Set(aTargets());
-  $("#aPick").innerHTML = `<button data-all="1" aria-pressed="${!A.ids}">All</button>` + lightList.map((l) => `<button data-id="${escH(l.id)}" aria-pressed="${!!A.ids && on.has(l.id)}" ${l.online ? "" : "disabled"}>${escH(l.name)}</button>`).join("");
-}
-function renderScenes() {
-  $("#aScenes").innerHTML = [...BUILTIN_SCENES.map((sc, i) => ({ ...sc, key: "b" + i })), ...userScenes.map((sc, i) => ({ ...sc, key: "u" + i, mine: true }))]
-    .map((sc) => `<button class="scene" data-scene="${sc.key}">${escH(sc.name)}<small>${escH(sc.sub || "")}</small>${sc.mine ? `<span class="x" data-del="${sc.key}" aria-label="Delete scene">×</span>` : ""}</button>`).join("");
-}
-async function applyScene(sc) {
-  if (sc.lights) { // saved scene: each light gets its own color
-    const res = await Promise.allSettled(sc.lights.map((x) => api(`/api/lights/${x.id}`, { method: "POST", body: x.on ? { on: true, color: x.color } : { on: false } })));
-    const bad = res.filter((r) => r.status === "rejected").length; toast(bad ? `${bad} light(s) didn't answer` : sc.name, !!bad); setTimeout(loadLights, 600); return;
+    await api('POST', `/api/youtube/${tvId}`);
+    toast(`▶ YouTube launched on ${tv ? tv.name : tvId}`, 'success');
+  } catch (err) {
+    toast(`✗ YouTube failed on ${tv ? tv.name : tvId}: ${err.message}`, 'error');
   }
-  if (sc.effect) return allDo({ effect: sc.effect }, sc.name);
-  return allDo({ color: sc.color, brightness: sc.brightness }, sc.name);
 }
-function openAll() {
-  renderAPick(); renderScenes();
-  $("#aSwatches").innerHTML = A_SWATCH.map((c) => `<button style="background:${c}" data-c="${c}" aria-label="${c}"></button>`).join("");
-  $("#aWhites").innerHTML = A_WHITES.map(([n, c]) => `<button style="background:${c}" data-c="${c}">${n}</button>`).join("");
-  $("#aFx").innerHTML = A_FX.map(([n, k, bg]) => `<button data-fx="${k}">${n}<span class="sw" style="background:${bg}"></span></button>`).join("");
-  $("#aBri").value = A.bri; $("#aBri").style.setProperty("--p", A.bri + "%"); $("#aBriVal").textContent = A.bri + "%";
-  $("#aSpd").value = A.spd; $("#aSpd").style.setProperty("--p", A.spd + "%"); $("#aSpdVal").textContent = A.spd + "%";
-  $("#aSheet").classList.add("open"); $("#aSheet").setAttribute("aria-hidden", "false");
+
+// ── Group Commands ────────────────────────────────────────────────
+async function groupCommand(command) {
+  toast(`Sending ${command.toUpperCase()} to all TVs…`);
+  try {
+    const data = await api('POST', `/api/group/${command}`);
+    const ok = data.results.filter(r => r.success).length;
+    const fail = data.results.filter(r => !r.success).length;
+    if (fail === 0) {
+      toast(`✓ ${command.toUpperCase()} sent to all ${ok} TVs`, 'success');
+    } else {
+      toast(`⚠ ${ok} OK, ${fail} failed. Check IPs.`, 'error');
+    }
+  } catch (err) {
+    toast(`✗ Group command failed: ${err.message}`, 'error');
+  }
 }
-const closeAll = () => { $("#aSheet").classList.remove("open"); $("#aSheet").setAttribute("aria-hidden", "true"); };
-$("#lAll").onclick = openAll;
-$("#aClose").onclick = closeAll;
-$("#aSheet").addEventListener("click", (e) => { if (e.target.id === "aSheet") closeAll(); });
-$("#aPick").onclick = (e) => {
-  const b = e.target.closest("button"); if (!b) return;
-  if (b.dataset.all) A.ids = null;
-  else { const cur = new Set(A.ids || []); cur.has(b.dataset.id) ? cur.delete(b.dataset.id) : cur.add(b.dataset.id); A.ids = cur.size ? [...cur] : null; }
-  renderAPick();
-};
-$("#aOn").onclick = () => allDo({ on: true }, "On");
-$("#aOff").onclick = () => allDo({ on: false }, "Off");
-let aColorPick = "#ff0040";
-const aSetColor = (c) => { aColorPick = c; $("#aColor").value = c.length === 7 ? c : "#ffffff"; allDo({ color: c, brightness: A.bri }, "Color set"); };
-$("#aSwatches").onclick = (e) => { const c = e.target.dataset.c; if (c) aSetColor(c); };
-$("#aWhites").onclick = (e) => { const c = e.target.closest("[data-c]")?.dataset.c; if (c) aSetColor(c); };
-$("#aColor").addEventListener("change", (e) => aSetColor(e.target.value));
-let aBriT;
-$("#aBri").addEventListener("input", (e) => {
-  A.bri = Number(e.target.value); e.target.style.setProperty("--p", A.bri + "%"); $("#aBriVal").textContent = A.bri + "%";
-  clearTimeout(aBriT); aBriT = setTimeout(() => api("/api/lights/all", { method: "POST", body: { ids: aTargets(), brightness: A.bri } }).catch((err) => toast(err.message, true)), 250);
+
+// ── Ping ──────────────────────────────────────────────────────────
+async function pingOne(tvId) {
+  const dot = document.getElementById(`dot-${tvId}`);
+  if (dot) dot.className = 'status-dot'; // reset
+
+  try {
+    const data = await api('POST', `/api/ping/${tvId}`);
+    if (dot) dot.className = `status-dot ${data.online ? 'online' : 'offline'}`;
+    toast(data.online ? `✓ ${data.tv} is online` : `✗ ${data.tv} is offline or unreachable`, data.online ? 'success' : 'error');
+  } catch (err) {
+    if (dot) dot.className = 'status-dot offline';
+    toast(`✗ Ping failed: ${err.message}`, 'error');
+  }
+}
+
+async function pingAll() {
+  toast('Pinging all TVs…');
+  for (const tv of tvs) {
+    pingOne(tv.id);
+  }
+}
+
+// ── YouTube Group Modal ───────────────────────────────────────────
+function openYouTubeModal() {
+  const list = document.getElementById('yt-tv-list');
+  list.innerHTML = tvs.map(tv => `
+    <label class="tv-checkbox-item">
+      <input type="checkbox" value="${tv.id}" checked />
+      <span class="tv-checkbox-name">${escHtml(tv.name)}</span>
+      <span class="tv-checkbox-type">${tv.type.toUpperCase()} · ${tv.ip}</span>
+    </label>
+  `).join('');
+  openModalById('yt-modal');
+}
+
+async function sendYouTubeGroup() {
+  const checked = [...document.querySelectorAll('#yt-tv-list input:checked')].map(i => i.value);
+  if (checked.length === 0) { toast('Select at least one TV', 'error'); return; }
+
+  closeModalById('yt-modal');
+  toast('Opening YouTube…');
+
+  try {
+    const data = await api('POST', '/api/group/youtube', { ids: checked });
+    const ok = data.results.filter(r => r.success).length;
+    const fail = data.results.filter(r => !r.success).length;
+    if (fail === 0) {
+      toast(`▶ YouTube opened on ${ok} TV${ok !== 1 ? 's' : ''}`, 'success');
+    } else {
+      toast(`⚠ YouTube: ${ok} OK, ${fail} failed`, 'error');
+    }
+  } catch (err) {
+    toast(`✗ YouTube group failed: ${err.message}`, 'error');
+  }
+}
+
+// ── Add / Edit Modal ──────────────────────────────────────────────
+function openAddModal() {
+  document.getElementById('modal-title').textContent = 'Add TV';
+  document.getElementById('modal-subtitle').textContent = 'Enter the details for your TV or streaming device.';
+  document.getElementById('edit-tv-id').value = '';
+  document.getElementById('tv-name-input').value = '';
+  document.getElementById('tv-ip-input').value = '';
+  document.getElementById('tv-type-input').value = 'roku';
+  openModalById('tv-modal');
+}
+
+function openEditModal(tvId) {
+  const tv = tvs.find(t => t.id === tvId);
+  if (!tv) return;
+  document.getElementById('modal-title').textContent = 'Edit TV';
+  document.getElementById('modal-subtitle').textContent = `Editing: ${tv.name}`;
+  document.getElementById('edit-tv-id').value = tvId;
+  document.getElementById('tv-name-input').value = tv.name;
+  document.getElementById('tv-ip-input').value = tv.ip;
+  document.getElementById('tv-type-input').value = tv.type;
+  openModalById('tv-modal');
+}
+
+async function saveTV() {
+  const id = document.getElementById('edit-tv-id').value;
+  const name = document.getElementById('tv-name-input').value.trim();
+  const ip = document.getElementById('tv-ip-input').value.trim();
+  const type = document.getElementById('tv-type-input').value;
+
+  if (!name || !ip) {
+    toast('Name and IP are required', 'error');
+    return;
+  }
+
+  // Basic IP validation
+  if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip)) {
+    toast('IP address looks invalid (format: 192.168.x.x)', 'error');
+    return;
+  }
+
+  try {
+    if (id) {
+      await api('PUT', `/api/tvs/${id}`, { name, ip, type });
+      toast(`✓ Updated "${name}"`, 'success');
+    } else {
+      await api('POST', '/api/tvs', { name, ip, type });
+      toast(`✓ Added "${name}"`, 'success');
+    }
+    closeModalById('tv-modal');
+    await loadTVs();
+  } catch (err) {
+    toast(`✗ Save failed: ${err.message}`, 'error');
+  }
+}
+
+async function deleteTV(tvId) {
+  const tv = tvs.find(t => t.id === tvId);
+  if (!confirm(`Remove "${tv ? tv.name : 'this TV'}" from the dashboard?`)) return;
+
+  try {
+    await api('DELETE', `/api/tvs/${tvId}`);
+    toast(`Removed "${tv ? tv.name : tvId}"`, 'success');
+    await loadTVs();
+  } catch (err) {
+    toast(`✗ Delete failed: ${err.message}`, 'error');
+  }
+}
+
+// ── Modal Helpers ─────────────────────────────────────────────────
+function openModalById(id) {
+  document.getElementById(id).classList.add('open');
+}
+
+function closeModalById(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+function closeModal(event, id) {
+  if (event.target === event.currentTarget) closeModalById(id);
+}
+
+// ── Keyboard shortcuts ────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeModalById('tv-modal');
+    closeModalById('yt-modal');
+  }
 });
-$("#aSpd").addEventListener("input", (e) => { A.spd = Number(e.target.value); e.target.style.setProperty("--p", A.spd + "%"); $("#aSpdVal").textContent = A.spd + "%"; });
-let lastFx = null;
-$("#aSpd").addEventListener("change", () => { if (lastFx) allDo({ effect: { pattern: lastFx, speed: A.spd } }, "Speed set"); });
-$("#aFx").onclick = (e) => { const b = e.target.closest("[data-fx]"); if (!b) return; lastFx = b.dataset.fx; allDo({ effect: { pattern: lastFx, speed: A.spd } }, b.textContent.trim()); };
-$("#aScenes").onclick = (e) => {
-  const del = e.target.closest("[data-del]");
-  if (del) { e.stopPropagation(); const i = Number(del.dataset.del.slice(1)); if (confirm(`Delete scene "${userScenes[i].name}"?`)) { userScenes.splice(i, 1); saveScenes(); renderScenes(); } return; }
-  const b = e.target.closest("[data-scene]"); if (!b) return;
-  const k = b.dataset.scene; applyScene(k[0] === "b" ? BUILTIN_SCENES[Number(k.slice(1))] : userScenes[Number(k.slice(1))]);
-};
-$("#aSaveScene").onclick = async () => {
-  const name = (prompt("Name this scene (for example: Game night)") || "").trim(); if (!name) return;
-  await loadLights();
-  const ids = new Set(aTargets());
-  const ls = lightList.filter((l) => l.online && ids.has(l.id)).map((l) => ({ id: l.id, on: !!l.on, color: rgbHex(l) }));
-  if (!ls.length) return toast("No lights answered", true);
-  userScenes.push({ name, sub: `${ls.length} light${ls.length > 1 ? "s" : ""}, as they are now`, lights: ls }); saveScenes(); renderScenes(); toast(`Saved "${name}"`);
-};
-$("#aMusic").onclick = () => { closeAll(); openMusicSync(); };
-$("#aFind").onclick = () => $("#lScan").click();
 
-// individual light: built-in shows too
-(() => {
-  const wrap = document.createElement("div");
-  wrap.innerHTML = `<label>Light shows</label><div class="fxgrid" id="lFx">${A_FX.slice(0, 6).map(([n, k, bg]) => `<button data-fx="${k}">${n}<span class="sw" style="background:${bg}"></span></button>`).join("")}</div>`;
-  const bri = $("#lBri").closest("label"); bri.after(wrap);
-  $("#lFx").onclick = (e) => { const b = e.target.closest("[data-fx]"); if (b) lightDo({ effect: { pattern: b.dataset.fx, speed: 60 } }, b.textContent.trim()); };
-})();
-
-// ---------- editable layout ----------
-const SECTIONS = { screen: "On screen", pre: "Presets", remote: "Remote", voice: "Commands", sonos: "Speakers", lights: "Lights", apps: "Apps & search" };
-const DEFAULT_LAYOUT = { phone: { order: ["pre", "remote", "screen", "voice", "sonos", "lights", "apps"], hidden: [] }, wide: { L: ["remote"], R: ["screen", "pre", "voice", "sonos", "lights", "apps"], hidden: [] } };
-let LAYOUT;
-try { LAYOUT = JSON.parse(localStorage.getItem("layout-v1")) || null; } catch {}
-LAYOUT = Object.assign(JSON.parse(JSON.stringify(DEFAULT_LAYOUT)), LAYOUT || {});
-const saveLayout = () => { try { localStorage.setItem("layout-v1", JSON.stringify(LAYOUT)); } catch {} };
-const wideMQ = window.matchMedia("(min-width:760px)");
-const sec = (k) => document.querySelector(`.layout .a-${k}`);
-(function setupLayout() {
-  const lay = $(".layout"); lay.classList.add("custom");
-  for (const id of ["colL", "colR"]) { const c = document.createElement("div"); c.className = "col"; c.id = id; lay.appendChild(c); }
-  for (const k of Object.keys(SECTIONS)) {
-    const s = sec(k); s.dataset.sec = k;
-    const ov = document.createElement("div"); ov.className = "edit-ov";
-    ov.innerHTML = `<span class="nm"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>${SECTIONS[k]}</span>
-      <span class="bt"><button data-mv="-1" aria-label="Move up">↑</button><button data-mv="1" aria-label="Move down">↓</button><button data-side aria-label="Other column" class="sidebtn">⇆</button><button data-hide aria-label="Hide or show">👁</button></span>`;
-    s.appendChild(ov);
-  }
-})();
-function applyLayout() {
-  const wide = wideMQ.matches, cfg = wide ? LAYOUT.wide : LAYOUT.phone;
-  const known = Object.keys(SECTIONS);
-  const fill = (list) => list.filter((k) => known.includes(k));
-  let L = wide ? fill(cfg.L) : fill(cfg.order), R = wide ? fill(cfg.R) : [];
-  for (const k of known) if (!L.includes(k) && !R.includes(k)) (wide ? R : L).push(k); // anything new goes at the end
-  L.forEach((k) => $("#colL").appendChild(sec(k))); R.forEach((k) => $("#colR").appendChild(sec(k)));
-  for (const k of known) sec(k).classList.toggle("hid", cfg.hidden.includes(k));
-  const rem = sec("remote"); rem.classList.toggle("solo", rem.parentElement.children.length === 1);
-  document.querySelectorAll(".sidebtn").forEach((b) => (b.style.display = wide ? "" : "none"));
-}
-function readLayout() {
-  const L = [...$("#colL").children].map((s) => s.dataset.sec).filter(Boolean), R = [...$("#colR").children].map((s) => s.dataset.sec).filter(Boolean);
-  if (wideMQ.matches) { LAYOUT.wide.L = L; LAYOUT.wide.R = R; } else LAYOUT.phone.order = L.concat(R);
-  saveLayout(); applyLayout();
-}
-wideMQ.addEventListener ? wideMQ.addEventListener("change", applyLayout) : wideMQ.addListener(applyLayout);
-applyLayout();
-function setEditing(on) {
-  document.body.classList.toggle("editing", on);
-  if (on) { closeSheetsForEdit(); toast("Editing layout"); } else toast("Layout saved");
-}
-function closeSheetsForEdit() { document.querySelectorAll(".sheet.open").forEach((s) => s.classList.remove("open")); }
-$("#editLayout").onclick = () => setEditing(!document.body.classList.contains("editing"));
-$("#layoutDone").onclick = () => setEditing(false);
-$("#layoutReset").onclick = () => { if (!confirm("Put every panel back where it started?")) return; LAYOUT = JSON.parse(JSON.stringify(DEFAULT_LAYOUT)); saveLayout(); applyLayout(); };
-$(".layout").addEventListener("click", (e) => {
-  if (!document.body.classList.contains("editing")) return;
-  const s = e.target.closest("section[data-sec]"); if (!s) return;
-  const b = e.target.closest(".edit-ov button"); if (!b) return;
-  e.stopPropagation();
-  const k = s.dataset.sec, cfg = wideMQ.matches ? LAYOUT.wide : LAYOUT.phone;
-  if (b.dataset.hide !== undefined) { const i = cfg.hidden.indexOf(k); i >= 0 ? cfg.hidden.splice(i, 1) : cfg.hidden.push(k); saveLayout(); applyLayout(); return; }
-  if (b.dataset.side !== undefined) { (s.parentElement.id === "colL" ? $("#colR") : $("#colL")).appendChild(s); readLayout(); return; }
-  const mv = Number(b.dataset.mv);
-  if (mv < 0 && s.previousElementSibling) s.parentElement.insertBefore(s, s.previousElementSibling);
-  else if (mv > 0 && s.nextElementSibling) s.parentElement.insertBefore(s.nextElementSibling, s);
-  readLayout();
-}, true);
-// press-and-hold, then drag
-(() => {
-  let drag = null, hold = null, start = null, scrollT = null;
-  const cancelHold = () => { clearTimeout(hold); hold = null; };
-  document.addEventListener("pointerdown", (e) => {
-    if (!document.body.classList.contains("editing")) return;
-    const ov = e.target.closest(".edit-ov"); if (!ov || e.target.closest(".edit-ov button")) return;
-    const s = ov.closest("section"); start = { x: e.clientX, y: e.clientY, id: e.pointerId };
-    hold = setTimeout(() => {
-      drag = s; s.classList.add("dragging"); if (navigator.vibrate && FB.mode !== "off") navigator.vibrate(35);
-      try { ov.setPointerCapture(start.id); } catch {}
-    }, e.pointerType === "mouse" ? 120 : 300);
-  });
-  document.addEventListener("pointermove", (e) => {
-    if (hold && !drag && start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 10) cancelHold();
-    if (!drag) return;
-    e.preventDefault();
-    const x = e.clientX, y = e.clientY;
-    clearInterval(scrollT); scrollT = null;
-    if (y < 70) scrollT = setInterval(() => window.scrollBy(0, -14), 16); else if (y > innerHeight - 70) scrollT = setInterval(() => window.scrollBy(0, 14), 16);
-    drag.style.visibility = "hidden"; const el = document.elementFromPoint(x, y); drag.style.visibility = "";
-    const over = el && el.closest(".col>section"), col = el && el.closest(".col");
-    if (over && over !== drag) { const r = over.getBoundingClientRect(); over.parentElement.insertBefore(drag, y < r.top + r.height / 2 ? over : over.nextSibling); }
-    else if (!over && col && col !== drag.parentElement) col.appendChild(drag);
-  }, { passive: false });
-  document.addEventListener("touchmove", (e) => { if (drag) e.preventDefault(); }, { passive: false });
-  const end = () => { cancelHold(); clearInterval(scrollT); scrollT = null; if (!drag) return; drag.classList.remove("dragging"); drag = null; readLayout(); };
-  document.addEventListener("pointerup", end); document.addEventListener("pointercancel", end);
-})();
-
-
-// ---------- Alexa ----------
-const AX_KIND = { tv: "TV", preset: "Preset", light: "Light", lightsAll: "Lights", sonos: "Speaker", sonosTv: "TV sound" };
-async function loadAlexa() {
-  try {
-    const r = await api("/api/alexa");
-    const st = r.status;
-    $("#axStatus").innerHTML = st.http ? `✅ Alexa bridge is running on this PC (${escH(st.ip)}).` : `⚠️ Alexa bridge isn't running: ${escH(st.error || "starting…")} Close whatever program uses port ${st.port} (often Skype, IIS or another "bridge" app) and restart TV Remote Hub in Server Hub.`;
-    $("#axList").innerHTML = r.devices.map((d) => `<div class="axrow" data-key="${escH(d.key)}"><span class="k">${AX_KIND[d.kind] || ""}</span><input type="text" value="${escH(d.name)}" placeholder="${escH(d.defName)}" aria-label="Alexa name"><input type="checkbox" ${d.enabled ? "checked" : ""} aria-label="Show in Alexa"></div>`).join("") || '<div class="empty">Add TVs, presets, lights or speakers first.</div>';
-  } catch (e) { $("#axStatus").textContent = e.message; }
-}
-$("#axList").addEventListener("change", async (e) => {
-  const row = e.target.closest(".axrow"); if (!row) return;
-  const body = e.target.type === "checkbox" ? { key: row.dataset.key, enabled: e.target.checked } : { key: row.dataset.key, name: e.target.value };
-  try { await api("/api/alexa", { method: "POST", body }); toast("Saved. Say \"Alexa, discover devices\""); } catch (err) { toast(err.message, true); }
-});
-$("#openSettings").addEventListener("click", () => setTimeout(loadAlexa, 50));
-
-
-// ---------- what's on the TVs ----------
-const SCR = { timer: null, wallTimer: null, now: {}, camera: "" };
-const esc2 = (t) => escH(t);
-function fmtClock(n) { n = Math.max(0, n | 0); const h = Math.floor(n / 3600), m = Math.floor(n / 60) % 60, s2 = String(n % 60).padStart(2, "0"); return h ? `${h}:${String(m).padStart(2, "0")}:${s2}` : `${m}:${s2}`; }
-function nowText(n) {
-  if (!n) return "";
-  if (n.online === false) return "Not reachable";
-  if (n.on === false) return "Off / asleep";
-  const st = n.state === "play" ? "▶ " : n.state === "pause" ? "❚❚ " : "";
-  return `${st}${n.app || ""}${n.duration > 0 ? ` · ${fmtClock(n.position)} / ${fmtClock(n.duration)}` : ""}`;
-}
-function screenHTML(tv, n, live) {
-  if (n && n.online !== false && n.on !== false && tv.type !== "roku" && tv.type !== "vega" && live)
-    return `<img class="shot" alt="${esc2(tv.name)} screen" src="/api/tvs/${tv.id}/screen?t=${Date.now()}" data-tv="${tv.id}"><span class="live">LIVE</span><span class="tag">${esc2(nowText(n) || tv.name)}</span>`;
-  const icon = n && n.icon ? `<img src="${n.icon}" alt="">` : "";
-  const line = n ? (n.note || nowText(n) || "") : "Checking…";
-  return `<div class="card">${icon}<b>${esc2(n && n.on !== false && n.online !== false ? (n.app || tv.name) : tv.name)}</b><span>${esc2(line)}</span></div>`;
-}
-// pictures of copy-protected video come back black: detect that and say why instead of showing a black box
-document.addEventListener("load", (e) => {
-  const img = e.target; if (!(img instanceof HTMLImageElement) || !img.classList.contains("shot")) return;
-  try {
-    const c = document.createElement("canvas"); c.width = 32; c.height = 18; const g = c.getContext("2d"); g.drawImage(img, 0, 0, 32, 18);
-    const d = g.getImageData(0, 0, 32, 18).data; let sum = 0; for (let i = 0; i < d.length; i += 4) sum += d[i] + d[i + 1] + d[i + 2];
-    const box = img.closest(".scr"); const old = box.querySelector(".prot"); if (old) old.remove();
-    if (sum / (d.length / 4) / 3 < 6) { const n = SCR.now[img.dataset.tv] || {}; const p = document.createElement("div"); p.className = "card prot"; p.style.position = "relative"; box.querySelectorAll('.tag,.live').forEach((x) => x.remove()); p.innerHTML = `<b>${esc2(n.app || "Protected video")}</b><span>Playing copy-protected video, so the TV won't share a picture.</span>`; box.appendChild(p); }
-  } catch {}
-}, true);
-document.addEventListener("error", (e) => {
-  const img = e.target; if (!(img instanceof HTMLImageElement) || !img.classList.contains("shot")) return;
-  const box = img.closest(".scr"); img.remove(); if (!box.querySelector(".card")) box.insertAdjacentHTML("beforeend", `<div class="card"><b>No picture</b><span>Couldn't get a screenshot. Tap Connect for this TV in Manage TVs.</span></div>`);
-}, true);
-async function fetchNow(tv) { try { SCR.now[tv.id] = await api(`/api/tvs/${tv.id}/now`); } catch (e) { SCR.now[tv.id] = { online: false, error: e.message }; } return SCR.now[tv.id]; }
-async function refreshOne() {
-  const box = $("#scOne"); if (!box || document.hidden) return;
-  const sec = box.closest("section"); if (sec.classList.contains("hid")) return;
-  const ids = targets(); const tv = tvs.find((t) => t.id === ids[0]);
-  if (!tv) { box.innerHTML = '<div class="empty" style="color:#9aa1b3">Pick a TV to see what\'s on it.</div>'; return; }
-  $("#scTitle").textContent = `On screen: ${tv.name}${ids.length > 1 ? ` (+${ids.length - 1})` : ""}`;
-  const n = await fetchNow(tv);
-  box.classList.toggle("off", n.on === false || n.online === false);
-  const html = screenHTML(tv, n, true);
-  // swap images without flashing: load the new picture first
-  const img = box.querySelector("img.shot");
-  if (img && html.includes('class="shot"')) {
-    const nu = new Image(); nu.onload = () => { img.src = nu.src; const t = box.querySelector(".tag"); if (t) t.textContent = nowText(n) || tv.name; };
-    nu.src = `/api/tvs/${tv.id}/screen?t=${Date.now()}`;
-  } else box.innerHTML = html;
-}
-function startScreen() { clearInterval(SCR.timer); refreshOne(); SCR.timer = setInterval(refreshOne, 6000); }
-$("#scOne").onclick = () => openWall();
-$("#scAll").onclick = () => openWall();
-async function renderWall(first) {
-  const wall = $("#wall");
-  if (first) {
-    wall.innerHTML = (SCR.camera ? `<div class="wcam"><div class="scr"><img src="/api/camera?t=${Date.now()}" alt="Room camera"></div><div class="wn">Room camera</div></div>` : "") +
-      tvs.map((tv) => `<div class="wtile" data-tv="${tv.id}"><div class="scr"><div class="card"><b>${esc2(tv.name)}</b><span>Checking…</span></div></div><div class="wn">${esc2(tv.name)}<span></span></div></div>`).join("");
-  }
-  await Promise.all(tvs.map(async (tv) => {
-    const n = await fetchNow(tv);
-    const tile = wall.querySelector(`.wtile[data-tv="${CSS.escape(tv.id)}"]`); if (!tile) return;
-    const box = tile.querySelector(".scr"); box.classList.toggle("off", n.on === false || n.online === false);
-    tile.querySelector(".wn span").textContent = nowText(n);
-    const html = screenHTML(tv, n, true); const img = box.querySelector("img.shot");
-    if (img && html.includes('class="shot"')) { const nu = new Image(); nu.onload = () => { img.src = nu.src; }; nu.src = `/api/tvs/${tv.id}/screen?t=${Date.now()}`; }
-    else box.innerHTML = html;
-  }));
-}
-async function openWall() {
-  try { SCR.camera = (await api("/api/view")).camera; } catch {}
-  $("#wSheet").classList.add("open"); $("#wSheet").setAttribute("aria-hidden", "false");
-  renderWall(true); clearInterval(SCR.wallTimer); SCR.wallTimer = setInterval(() => { if (!document.hidden) renderWall(false); }, 8000);
-}
-function closeWall() { clearInterval(SCR.wallTimer); $("#wSheet").classList.remove("open"); $("#wSheet").setAttribute("aria-hidden", "true"); $("#wall").innerHTML = ""; }
-$("#wClose").onclick = closeWall;
-$("#wall").onclick = (e) => {
-  const t = e.target.closest(".wtile"); if (!t) return;
-  selected = new Set([t.dataset.tv]); if (multi) { multi = false; } commitSelection(); closeWall(); startScreen();
-  document.querySelector(".a-remote")?.scrollIntoView({ behavior: "smooth", block: "start" });
-};
-$("#wCamSet").onclick = async () => {
-  const cur = SCR.camera || "";
-  const v = prompt("Room camera address (for example an old phone with the \"IP Webcam\" app: http://192.168.1.50:8080/video). Leave empty to remove.", cur);
-  if (v === null) return;
-  try { await api("/api/view", { method: "POST", body: { camera: v } }); SCR.camera = v.trim(); renderWall(true); toast(v.trim() ? "Camera added" : "Camera removed"); } catch (e) { toast(e.message, true); }
-};
-// refresh the preview when the TV selection changes
-const _commit = commitSelection;
-commitSelection = function () { _commit(); setTimeout(refreshOne, 50); };
-document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshOne(); });
-setTimeout(startScreen, 1500);
-
-
-// ---------- install apps ----------
-const GA = { q: "", results: [], pick: null };
-const gaMark = (v) => (v === true ? "✓" : v === false ? "✗" : "?");
-async function gaSearch(q) {
-  q = (q ?? $("#gaQ").value).trim(); if (q.length < 2) return toast("Type at least 2 letters", true);
-  GA.q = q; $("#gaQ").value = q; $("#gaPick").hidden = true; $("#gaOut").innerHTML = "";
-  $("#gaRes").innerHTML = '<div class="empty">Checking every TV…</div>';
-  try {
-    const r = await api(`/api/appsearch?q=${encodeURIComponent(q)}`); GA.results = r.results;
-    const store = { name: q, rokuId: "", pkg: "", asin: "", rokuStore: "", tvs: tvs.map((t) => ({ id: t.id, name: t.name, type: t.type, installed: null })), store: true };
-    const list = [...r.results, store];
-    GA.results = list;
-    $("#gaRes").innerHTML = list.map((c, i) => {
-      const have = c.tvs.filter((t) => t.installed === true).length;
-      const sub = c.store ? "Not listed? Open the app stores on the TVs and search there" : `On ${have} of ${c.tvs.length} TVs · ` + c.tvs.map((t) => `${gaMark(t.installed)} ${t.name}`).join("  ");
-      return `<button class="mrow" data-i="${i}" style="grid-template-columns:minmax(0,1fr) auto"><span style="min-width:0"><div class="t">${c.store ? `Search stores for "${escH(q)}"` : escH(c.name)}</div><div class="a" style="white-space:normal">${escH(sub)}</div></span><span class="acts"><span>${c.store ? "Search" : "Pick"}</span></span></button>`;
-    }).join("");
-  } catch (e) { $("#gaRes").innerHTML = `<div class="empty">${escH(e.message)}</div>`; }
-}
-function gaChoose(i) {
-  const c = GA.results[i]; GA.pick = c;
-  $("#gaPickName").textContent = c.store ? `Search the app stores for "${GA.q}" on:` : `Install ${c.name} on:`;
-  $("#gaTvs").innerHTML = c.tvs.map((t) => `<label><input type="checkbox" value="${escH(t.id)}" ${t.installed ? "" : "checked"}> ${escH(t.name)} <span class="st ${t.installed ? "ok" : ""}">${t.installed === true ? "Installed" : t.installed === false ? "Not installed" : c.store ? "" : "Can't check"}</span></label>`).join("");
-  $("#gaGo").textContent = c.store ? "Search on checked TVs" : "Install on checked TVs";
-  $("#gaPick").hidden = false; $("#gaPick").scrollIntoView({ behavior: "smooth", block: "nearest" });
-}
-$("#gaRes").onclick = (e) => { const b = e.target.closest("[data-i]"); if (b) gaChoose(Number(b.dataset.i)); };
-$("#gaSearch").onclick = () => gaSearch();
-$("#gaQ").addEventListener("keydown", (e) => { if (e.key === "Enter") gaSearch(); });
-$("#gaPop").onclick = (e) => { const b = e.target.closest("[data-q]"); if (b) gaSearch(b.dataset.q); };
-$("#getApps").onclick = async () => {
-  if (!catalog.length) await loadCatalog();
-  $("#gaPop").innerHTML = catalog.map((a) => `<button data-q="${escH(a.name)}">${escH(a.name)}</button>`).join("");
-  $("#gaRes").innerHTML = ""; $("#gaPick").hidden = true; $("#gaOut").innerHTML = "";
-  $("#gaSheet").classList.add("open"); $("#gaSheet").setAttribute("aria-hidden", "false"); setTimeout(() => $("#gaQ").focus(), 100);
-};
-$("#gaClose").onclick = () => { $("#gaSheet").classList.remove("open"); $("#gaSheet").setAttribute("aria-hidden", "true"); loadApps(); };
-$("#gaSheet").addEventListener("click", (e) => { if (e.target.id === "gaSheet") $("#gaClose").onclick(); });
-$("#gaGo").onclick = async () => {
-  const ids = [...$("#gaTvs").querySelectorAll("input:checked")].map((i) => i.value);
-  if (!ids.length) return toast("Check at least one TV", true);
-  const btn = $("#gaGo"); btn.disabled = true; btn.textContent = "Working… (watch the TVs)";
-  try {
-    const { tvs: _t, store: _s, ...app } = GA.pick;
-    const r = await api("/api/appinstall", { method: "POST", body: { app: GA.pick.store ? { name: GA.q } : app, ids, q: GA.q } });
-    const links = new Set();
-    $("#gaOut").innerHTML = `<div class="gares">${r.results.map((x) => {
-      const link = x.link && !links.has(x.link) ? (links.add(x.link), ` <a href="${escH(x.link)}" target="_blank" rel="noopener">Open website</a>`) : "";
-      return `<div><b>${escH(x.name)}:</b> ${escH(x.ok ? x.msg : x.error)}${link}</div>`;
-    }).join("")}</div>`;
-  } catch (e) { toast(e.message, true); }
-  btn.disabled = false; btn.textContent = GA.pick && GA.pick.store ? "Search on checked TVs" : "Install on checked TVs";
-};
-
-// ---------- boot ----------
-async function loadTvs() {
-  tvs = await api("/api/tvs");
-  selected = new Set(targets());
-  if (!selected.size && tvs.length) selected.add(tvs[0].id);
-  if (!multi && selected.size > 1) selected = new Set([[...selected][0]]);
-  commitSelection();
-}
-loadTvs().then(() => { refreshStatus(false); loadCatalog().then(loadPresets); if (!tvs.length) openSheet(); })
-  .catch(() => toast("Can't reach the hub. Is the server running on your PC?", true));
+// ── Init ──────────────────────────────────────────────────────────
+loadTVs();
 </script>
 </body>
 </html>

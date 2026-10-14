@@ -1,0 +1,38 @@
+[
+  {
+    "id": "tv1",
+    "name": "Living Room Roku",
+    "ip": "192.168.1.101",
+    "type": "roku"
+  },
+  {
+    "id": "tv2",
+    "name": "Bedroom Fire TV",
+    "ip": "192.168.1.102",
+    "type": "firetv"
+  },
+  {
+    "id": "tv3",
+    "name": "Kitchen Roku",
+    "ip": "192.168.1.103",
+    "type": "roku"
+  },
+  {
+    "id": "tv4",
+    "name": "Office Fire Stick",
+    "ip": "192.168.1.104",
+    "type": "firetv"
+  },
+  {
+    "id": "tv5",
+    "name": "Guest Room Roku",
+    "ip": "192.168.1.105",
+    "type": "roku"
+  },
+  {
+    "id": "tv6",
+    "name": "Basement Fire Stick",
+    "ip": "192.168.1.106",
+    "type": "firetv"
+  }
+]

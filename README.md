@@ -1,145 +1,252 @@
-# TV Control Hub
+# 📺 6TV Control Hub — Setup Guide
 
-One phone remote for all your Rokus and Google TVs. A small server runs on your PC; your phone opens it in the browser on the same Wi-Fi.
+A local web dashboard to control all 6 of your TVs from one screen.
+Works from your PC browser **and** your phone on the same Wi-Fi network.
 
-## 1. Install Node.js (once)
-Download the LTS version from https://nodejs.org and install it.
+---
 
-## 2. Install ADB (once, only needed for Google TVs)
-1. Download "SDK Platform-Tools for Windows": https://developer.android.com/tools/releases/platform-tools
-2. Unzip it to `C:\platform-tools`
-3. Add it to PATH: Start menu, search "environment variables", Edit the system environment variables, Environment Variables, select Path under your user, Edit, New, `C:\platform-tools`, OK.
-4. Open a new Command Prompt and run `adb version` to check.
+## 📁 Project Structure
 
-Don't want to touch PATH? Start the server with `set ADB_PATH=C:\platform-tools\adb.exe` before `node server.js`.
-
-## 3. Prep each TV
-
-**Roku**
-- Find the IP: Settings > Network > About.
-- Make sure Settings > System > Advanced system settings > Control by mobile apps > Network access is not Disabled or Limited.
-- For "Turn on" to work from off: Settings > System > Power > Fast TV start: On (Roku TVs).
-
-**Fire TV / Fire Stick**
-1. Settings > My Fire TV > About > click the device name 7 times until it says you're a developer.
-2. Settings > My Fire TV > Developer options > turn on **ADB debugging**.
-3. Find the IP: Settings > My Fire TV > About > Network.
-4. Add it in the dashboard, tap **Connect**, then check "Always allow from this computer" and tap Allow on the TV.
-
-**Google TV**
-1. Settings > System > About > scroll to "Android TV OS build" and press OK 7 times until it says you're a developer.
-2. Settings > System > Developer options > turn on **USB debugging**. (Despite the name, this also allows network control.)
-3. Find the IP: Settings > Network & Internet > your Wi-Fi network.
-4. In the dashboard, add the TV, then tap **Connect**. A prompt appears on the TV: check "Always allow from this computer" and tap **Allow**.
-
-If Connect keeps failing on a newer Google TV (Android 14 / Google TV Streamer), use the "Pair with a code" section in the dashboard with Developer options > Wireless debugging.
-
-**Newer Fire Sticks (Vega OS, e.g. Fire TV Stick 4K Select)**
-These have no ADB. If "Developer options" shows a code screen instead of an ADB switch, it's a Vega stick.
-1. Find the IP: Settings > My Fire TV > About > Network.
-2. In the dashboard, add it with type **Fire TV (Vega)**, then tap **Pair**.
-3. A PIN appears on the TV. Type it in. You only do this once; the hub remembers it.
-Volume isn't available over Wi-Fi on these sticks, so use the TV's remote for volume.
-
-## 4. Run it
-Double-click `start.bat` (first run installs everything). Or in this folder:
 ```
+6tv-control-hub/
+├── server.js          ← Express backend (the brain)
+├── roku.js            ← Roku ECP controller
+├── firetv.js          ← Fire TV ADB controller
+├── tvs.json           ← Your TV config (auto-created/saved)
+├── package.json       ← Node.js dependencies
+├── public/
+│   └── index.html     ← The web dashboard UI
+└── README.md          ← This file
+```
+
+---
+
+## 🚀 Step 1 — Install Prerequisites
+
+### Node.js
+Download and install from: https://nodejs.org (choose the LTS version)
+Verify with: `node --version`
+
+### ADB (Android Debug Bridge) — Required for Fire TV only
+ADB lets your PC talk to Fire TV over Wi-Fi.
+
+**Windows:**
+1. Download Platform Tools: https://developer.android.com/studio/releases/platform-tools
+2. Extract the zip to a folder like `C:\platform-tools`
+3. Add that folder to your PATH:
+   - Search "Environment Variables" in Start Menu
+   - Edit "Path" under System Variables
+   - Add `C:\platform-tools`
+4. Open a new Command Prompt and test: `adb version`
+
+**Mac:**
+```bash
+brew install android-platform-tools
+```
+Then test: `adb version`
+
+**Linux:**
+```bash
+sudo apt install adb
+```
+
+---
+
+## 🚀 Step 2 — Install the Project
+
+Open a terminal/command prompt in the `6tv-control-hub` folder:
+
+```bash
 npm install
+```
+
+This installs Express, node-fetch, and cors.
+
+---
+
+## 📺 Step 3 — Set Up Your Roku Devices
+
+Roku devices work over Wi-Fi with NO extra configuration needed!
+Just make sure:
+- Your Roku and PC are on the **same Wi-Fi network**
+- Find your Roku's IP: **Settings → Network → About → IP Address**
+
+That's it! No developer mode needed for Roku.
+
+---
+
+## 🔥 Step 4 — Set Up Your Fire TV Devices
+
+Fire TVs need ADB Debugging enabled. Do this **once** per device:
+
+### 4a. Enable Developer Options
+1. Go to **Settings → My Fire TV → About**
+2. Click **"Fire TV Stick"** (or your device name) **7 times rapidly**
+3. A message says "You are now a developer!" 🎉
+
+### 4b. Enable ADB Debugging
+1. Go back to **Settings → My Fire TV → Developer Options**
+2. Turn ON **"ADB Debugging"**
+3. Turn ON **"Apps from Unknown Sources"** (optional but recommended)
+
+### 4c. Find Your Fire TV's IP Address
+Go to **Settings → My Fire TV → About → Network** → note the IP address
+
+### 4d. First-Time Connection (must do for EACH Fire TV)
+Run this command in your terminal (replace with your Fire TV's IP):
+
+```bash
+adb connect 192.168.1.102:5555
+```
+
+**Look at your TV screen** — a dialog will appear:
+> "Allow USB debugging from this computer?"
+
+Click **"Allow"** (check "Always allow" to skip this step next time).
+
+You should see in terminal: `connected to 192.168.1.102:5555`
+
+Repeat for each Fire TV device.
+
+### 4e. Test ADB is working
+```bash
+adb -s 192.168.1.102:5555 shell input keyevent KEYCODE_HOME
+```
+Your Fire TV should go to the Home screen!
+
+---
+
+## 🚀 Step 5 — Start the Server
+
+```bash
 node server.js
 ```
-The window prints the address for your phone, like `http://192.168.1.20:3000`. Open that on your phone, then use Share > Add to Home Screen so it opens like an app.
 
-Keep the window open while you use the remote.
+You'll see:
+```
+╔════════════════════════════════════════════╗
+║        6TV Control Hub is running!        ║
+╠════════════════════════════════════════════╣
+║  Local:   http://localhost:3000           ║
+║  Phone:   http://<YOUR-PC-IP>:3000        ║
+╚════════════════════════════════════════════╝
+```
 
-## Using it
-- Tap a TV at the top to control it. Turn on **Control several** to tap more than one, or tap **All TVs**.
-- Dots: green on, yellow asleep, red can't reach.
-- D-pad and volume repeat when held.
-- The app buttons only show apps installed on the TVs you picked.
-- On a PC, arrow keys, Enter and Backspace work too.
+### Find your PC's IP address:
+- **Windows:** Open Command Prompt → `ipconfig` → look for "IPv4 Address" (like 192.168.1.50)
+- **Mac/Linux:** `ip a` or `ifconfig` → look for 192.168.x.x
 
-## Harmony Hub (most reliable power)
-A TV that's fully off drops off Wi-Fi, but it always listens for its own remote's infrared signal.
-If you have a Logitech Harmony Hub, the hub can send each TV's power code through it:
-1. In the Harmony app, add each TV as a device, and turn on Settings > Harmony Setup > Add/Edit Devices & Activities > Remote & Hub > Enable XMPP.
-2. In Manage TVs > Harmony Hub, enter the Harmony Hub's IP and tap Connect.
-3. Edit each TV and pick its Harmony device. Use Test IR to check.
-Turn on / Turn off / Power then go through Harmony for that TV. Everything else still goes over Wi-Fi.
+Open the dashboard on your PC: http://localhost:3000
+Open on your phone: `http://192.168.1.50:3000` (use YOUR PC's IP)
 
-## Presets
-Tap **+ New preset**, name it (like "Game Day"), and add steps: pick a TV (or All TVs) and an action:
-turn on/off, open an app, press a button, type text, or wait a few seconds. **Test it** runs it without saving.
-Tap a preset to run it. Tap **Edit** above the presets to change or delete one. Presets are saved on the PC,
-so every phone and iPad sees the same ones, and they survive updates.
+---
 
-## Voice and typed commands
-Type or say things like "Game Day", "ESPN on the Hisense", "turn off all TVs", "pause the Roku Ultra",
-or "search for Ted Lasso on the TCL". On iPhone, iPad and Android, tap the mic key on the keyboard to dictate
-(browsers block the built-in mic on plain http pages, so the blue mic button focuses the box for you).
+## 📝 Step 6 — Add Your TVs
 
-## iPad
-On an iPad the remote sits on the left and presets, commands and apps on the right, in portrait or landscape.
-Use Share > Add to Home Screen so it opens full screen like an app.
+1. Click the **"+ Add TV"** button in the top right
+2. Enter a name (e.g. "Living Room Roku")
+3. Enter the IP address (e.g. 192.168.1.101)
+4. Choose the device type (Roku or Fire TV)
+5. Click **Save TV**
 
-## Tips
-- Give each TV a reserved IP in your router settings so addresses never change.
-- Google TVs can drop the ADB connection after a reboot. The hub reconnects automatically; if it doesn't, tap Connect.
-- If Windows Firewall asks about Node.js, allow it on Private networks or your phone can't reach the hub.
+Repeat for all 6 TVs. Your config is saved to `tvs.json` automatically.
 
-## Running and updating it
+---
 
-This app is meant to run inside **Server Hub**. Upload this folder to GitHub Pages with
-your uploader, paste its address into Server Hub's "Add an app", and it installs, gets a
-port, and starts. To update later, upload the new folder and tap Update on its card.
-`tvs.json` is listed as a keep file, so your saved TVs survive updates.
+## 🔍 Step 7 — Test Each TV
 
-To run it on its own instead, use `npm install` then `node server.js` in this folder.
+1. Click the **🔍 (ping) button** on any TV card to test if it's reachable
+   - 🟢 Green dot = online
+   - 🔴 Red dot = offline/unreachable
 
+2. Try the **Home** button first — safest test command
 
-## Sonos speakers
-The Speakers section finds your Sonos speakers on its own. You can play, pause and skip; set the group volume or each speaker's volume; mute; and use "Group with…", "Change group" or "Group all" the same way the Sonos app does. A Sub or surrounds bonded to a soundbar are part of that room and don't show up separately.
+3. Use **"🔍 Ping All"** in the header to check all TVs at once
 
-## Lights (MagicLight / Magic Home)
-Tap Find in the Lights section. Your lights' names from the MagicLight app can't be read over the local network, so each light shows up as "Light" plus the last 6 characters of its MAC address. Tap ⋯, tap Blink it to see which light flashes, then rename it. Tapping a light's tile turns it on or off. Lights that are offline in the MagicLight app will show as offline here too.
+---
 
-Voice/typed examples: "lights off", "window light blue", "bottom clouds 50%", "Sonos volume 30", "pause the music", "group all speakers".
+## 🎮 Remote Buttons Reference
 
+| Button | Roku Command | Fire TV Keycode |
+|--------|-------------|-----------------|
+| Power | Power | KEYCODE_POWER |
+| Home | Home | KEYCODE_HOME |
+| Back | Back | KEYCODE_BACK |
+| Up | Up | KEYCODE_DPAD_UP |
+| Down | Down | KEYCODE_DPAD_DOWN |
+| Left | Left | KEYCODE_DPAD_LEFT |
+| Right | Right | KEYCODE_DPAD_RIGHT |
+| OK/Select | Select | KEYCODE_DPAD_CENTER |
+| Volume Up | VolumeUp | KEYCODE_VOLUME_UP |
+| Volume Down | VolumeDown | KEYCODE_VOLUME_DOWN |
+| Mute | VolumeMute | KEYCODE_VOLUME_MUTE |
 
-## Music on Sonos and Spotify
-Each speaker group shows the album art, a progress bar you can drag, Shuffle/Repeat, and a **Music** button:
-- **Favorites**: your Sonos favorites (Spotify playlists, radio stations, anything you've saved in the Sonos app). Tap to play now, or use Next / + Queue.
-- **Spotify**: paste any Spotify share link to play it (no setup needed). To search, connect a Spotify developer app (steps are shown in the app; the owner needs Premium, and the login has to be done once on the PC at http://127.0.0.1:3000).
-- **Playlists**: saved Sonos playlists.
-- **Queue**: see what's up next, jump to a song, remove songs, clear.
-Once Spotify is connected, a Spotify card at the top of Speakers shows what your account is playing on any device (phone, PC, Sonos), with controls, volume and "Play on" to move it.
-Voice/typed: "play Harvest Moon on the TV Room", "play my Chill Vibes playlist", "play <a Sonos favorite>".
+---
 
+## 🌐 Group Controls
 
-## Lights to the music
-Lights → **Music sync**. The iPad (or PC) microphone listens to the room and flashes the chosen lights on the beat, like the MagicLight app's Music tab. Effects: Color jump, Pulse (one color), Rainbow, Strobe; adjust Sensitivity if it misses beats or flashes too much. When you stop, each light goes back to how it was.
-The mic only works on a secure page. The hub also runs one at **https://192.168.1.40:3443** (port = app port + 443). Open it on the iPad, accept the "not private" warning once (it's your own PC's self-made certificate), and add that page to the Home Screen. That also makes the voice-command mic button work.
-No mic? Tap the "Tap here on the beat" button a few times and the lights keep that tempo.
+| Button | Action |
+|--------|--------|
+| ⏻ Power All | Sends power to ALL TVs |
+| ⌂ Home All | Sends Home to ALL TVs |
+| 🔇 Mute All | Mutes ALL TVs |
+| ▶ YouTube on Selected… | Opens YouTube picker — choose which TVs |
 
-## TV sound on Sonos
-Speaker cards with a soundbar (Beam, Arc, Ray…) have a **TV** button that switches that group to the TV's HDMI sound; the other speakers in the group keep playing along. Speakers with a line-in (Five, Port, Amp) get a **Line-in** button. Tapping **Music** and picking something switches back to music. Voice/typed: "switch the Sonos to TV".
+---
 
-## Spotify button
-The green **Spotify** button in Speakers opens the full Spotify player (the Spotify app on iPad/phone, open.spotify.com on the PC). Spotify Connect keeps every player in sync, so you can see Up Next and skip songs that are playing on your Sonos.
+## ❌ Troubleshooting
 
-## Control all lights, scenes and light shows
-Lights → **Control all**: pick all lights or just some, turn them on/off, choose a color, warm/soft/daylight white, a custom color, brightness, one-tap scenes (Movie night, Relax, Bright, Party, Chill, Night light), save your own scenes from how the lights look right now, and start the lights' built-in shows (fades, jumps, strobes) with a speed slider. Each light's ⋯ sheet has light shows too.
+### Roku not responding
+- Double-check IP: Settings → Network → About
+- Make sure Roku and PC are on the SAME Wi-Fi network
+- Try pinging from terminal: `ping 192.168.1.101`
+- Restart the Roku and try again
 
-## Rearranging the screen
-Tap the grid icon at the top (next to settings). Press and hold a panel and drag it, or use the arrows; ⇆ moves it to the other column on the iPad; the eye hides it. The phone and iPad each remember their own layout.
+### Fire TV not connecting via ADB
+- Confirm ADB Debugging is ON in Developer Options
+- Re-run: `adb connect YOUR_FIRETV_IP:5555`
+- Check the TV screen for an approval dialog
+- If ADB is installed, `adb devices` should list the device
 
-## Button feedback
-In layout editing: Vibrate (Android phones; iPhones on iOS 18+ get a light tap), Click sound (good for the iPad, which can't vibrate), Both, or Off.
+### "adb: command not found"
+- ADB isn't in your PATH — see Step 1 above
+- Restart your terminal after adding to PATH
 
-## Alexa
-The hub shows up to Alexa as a Philips Hue bridge on your network (works with 2nd-gen and newer Echo devices, no skill or account linking). Say "Alexa, discover devices". TVs and presets appear as plugs (on/off), lights as color lights (on/off, color, white temperature, brightness), Sonos rooms as dimmable devices (on = play, off = pause, percent = volume), and the Beam's room gets a "TV sound" switch. Manage names and which devices Alexa sees in Settings → Alexa. Requires port 80 on the PC to be free.
+### App works on PC but not phone
+- Make sure your phone is on the same Wi-Fi network (not mobile data)
+- Use your PC's local IP (192.168.x.x), not "localhost"
+- Check if Windows Firewall is blocking port 3000:
+  - Allow it: Windows Firewall → Allow an app → add Node.js
 
-## What's on the TVs
-The **On screen** panel shows the selected TV: a live picture for Fire TV and Google TV (screenshots over ADB, refreshed every few seconds), and the open app plus play position for Rokus. **See all TVs** shows every TV at once; tap one to control it. Copy-protected shows (Netflix, YouTube TV, Hulu…) come through black, so the app name is shown instead. Rokus and the newer Fire Stick don't allow screenshots. For a true picture of every screen, point an old phone running an IP-camera app at the TVs and add its address with **Camera…**.
+### YouTube doesn't open on Fire TV
+- Make sure the YouTube app is installed on that Fire TV
+- Try launching it manually first to confirm it works
+- The app ID used: `com.amazon.firetv.youtube`
 
-## Getting apps on the TVs
-Apps → **+ Get apps**: search any app (or tap a popular one), see which TVs already have it (✓ / ✗), and install it on the checked ones. When an app is on one TV the hub knows exactly which app to get for the others; if it's on none, "Search stores" opens each TV's app store search for you. Fire TVs open the Amazon Appstore page and press Get; the Google TV opens Google Play and presses Install. Rokus install through the Roku channel store (for MLB, the Roku website link adds it to every Roku on your account). The newer Fire Stick installs via Amazon's website ("Deliver to").
+---
+
+## 🔧 Tips
+
+- **Auto-start on boot (Windows):** Add `node server.js` to Task Scheduler
+- **Keep it running:** Install nodemon → `npm run dev` for auto-restart on code changes
+- **Bookmark on phone:** Open the URL in your phone's browser → Add to Home Screen
+
+---
+
+## 📡 How It Works
+
+```
+Your Phone/PC Browser
+        ↓  HTTP request
+  Express Server (server.js)
+     ↓            ↓
+  roku.js       firetv.js
+     ↓            ↓
+HTTP POST      ADB command
+to :8060       to :5555
+     ↓            ↓
+  Roku TV      Fire TV
+```
+
+- **Roku:** Uses Roku's built-in ECP (External Control Protocol) — simple HTTP
+- **Fire TV:** Uses ADB (Android Debug Bridge) over Wi-Fi — requires ADB installed
