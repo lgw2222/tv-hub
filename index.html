@@ -1,68 +1,1082 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#1c2128">
-<title>TV Remote Hub</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📺</text></svg>">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-:root{--bg:#1c2128;--card:#262c36;--raised:#313845;--ink:#e9ebf1;--muted:#8b93a5;--line:#39404e;--act:#6ea8ff;
-  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme: light){:root{--bg:#eceff4;--card:#fff;--raised:#f3f5f9;--ink:#1d2330;--muted:#69708a;--line:#d5dae3;--act:#2f6fe0}}
-*,*::before,*::after{box-sizing:inherit}
-html,body{margin:0;min-height:100%}
-body{background:var(--bg);color:var(--ink);font-family:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;font-size:17px;line-height:1.5}
-.wrap{max-width:620px;margin:0 auto;padding:40px 18px 60px}
-h1{font-size:34px;margin:0 0 6px;font-weight:700}
-.sub{color:var(--muted);margin:0 0 28px;font-size:17px}
-h2{font-size:15px;color:var(--muted);margin:30px 0 10px;font-weight:600}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
-p{margin:0 0 10px}
-p:last-child{margin-bottom:0}
-ol{margin:0;padding-left:22px}
-li{margin-bottom:8px}
-li:last-child{margin-bottom:0}
-.copy{display:flex;gap:8px;align-items:center;background:var(--raised);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
-code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;word-break:break-all;flex:1}
-button{font:inherit;font-weight:600;font-size:15px;color:var(--bg);background:var(--ink);border:0;border-radius:10px;padding:9px 14px;cursor:pointer}
-button:focus-visible{outline:2px solid var(--act);outline-offset:2px}
-.note{color:var(--muted);font-size:15px}
-a{color:var(--act)}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>6TV Control Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;800&display=swap" rel="stylesheet" />
+  <style>
+    /* ── CSS Variables ──────────────────────────────────────────── */
+    :root {
+      --bg:          #0a0c10;
+      --surface:     #111318;
+      --surface2:    #181c24;
+      --border:      #1e2530;
+      --border-glow: #1e3a5f;
+      --accent:      #00b4ff;
+      --accent2:     #0077cc;
+      --accent-glow: rgba(0, 180, 255, 0.18);
+      --roku-color:  #6c2bd9;
+      --roku-glow:   rgba(108, 43, 217, 0.25);
+      --fire-color:  #ff4e00;
+      --fire-glow:   rgba(255, 78, 0, 0.25);
+      --green:       #00e676;
+      --red:         #ff1744;
+      --text:        #d4e0f0;
+      --text-dim:    #5a7090;
+      --text-muted:  #2e3d50;
+      --mono:        'Share Tech Mono', monospace;
+      --display:     'Exo 2', sans-serif;
+      --ui:          'Rajdhani', sans-serif;
+    }
+
+    /* ── Reset & Base ───────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--display);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Scanline overlay for CRT effect */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.06) 2px,
+        rgba(0,0,0,0.06) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+
+    .logo-text {
+      font-family: var(--display);
+      font-weight: 800;
+      font-size: 1.3rem;
+      letter-spacing: 2px;
+      color: #fff;
+    }
+
+    .logo-text span {
+      color: var(--accent);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* ── Buttons ─────────────────────────────────────────────────── */
+    .btn {
+      font-family: var(--ui);
+      font-weight: 600;
+      font-size: 0.85rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface2);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    .btn:active { transform: scale(0.96); }
+
+    .btn-primary {
+      background: var(--accent2);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent);
+      box-shadow: 0 0 20px var(--accent-glow);
+      color: #fff;
+    }
+
+    .btn-danger {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    .btn-danger:hover {
+      background: rgba(255,23,68,0.1);
+      box-shadow: 0 0 12px rgba(255,23,68,0.2);
+    }
+
+    /* ── Group Control Bar ───────────────────────────────────────── */
+    .group-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 2rem;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .group-bar-label {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-right: 4px;
+    }
+
+    .group-btn {
+      font-family: var(--ui);
+      font-weight: 600;
+      font-size: 0.8rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 7px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .group-btn:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+      background: var(--accent-glow);
+    }
+
+    .group-btn:active { transform: scale(0.96); }
+
+    .group-btn.yt-btn:hover {
+      color: #fff;
+      border-color: #ff0000;
+      background: rgba(255,0,0,0.12);
+    }
+
+    /* ── Toast Notification ──────────────────────────────────────── */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 9000;
+      pointer-events: none;
+    }
+
+    .toast {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border-left: 3px solid var(--accent);
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards;
+      max-width: 320px;
+    }
+
+    .toast.error {
+      border-left-color: var(--red);
+      color: #ff8a80;
+    }
+
+    .toast.success {
+      border-left-color: var(--green);
+      color: #b9f6ca;
+    }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(20px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes toastOut {
+      from { opacity: 1; }
+      to   { opacity: 0; }
+    }
+
+    /* ── Main Grid ───────────────────────────────────────────────── */
+    main {
+      padding: 2rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 1.5rem;
+    }
+
+    /* ── TV Card ─────────────────────────────────────────────────── */
+    .tv-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      position: relative;
+    }
+
+    .tv-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .tv-card:hover {
+      border-color: var(--border-glow);
+      box-shadow: 0 0 30px rgba(0, 100, 200, 0.1);
+    }
+
+    .tv-card:hover::before { opacity: 1; }
+
+    .tv-card.roku-card::before {
+      background: linear-gradient(90deg, transparent, var(--roku-color), transparent);
+    }
+
+    .tv-card.firetv-card::before {
+      background: linear-gradient(90deg, transparent, var(--fire-color), transparent);
+    }
+
+    /* Card Header */
+    .card-header {
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .device-badge {
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+
+    .roku-badge {
+      background: var(--roku-glow);
+      color: #b39ddb;
+      border: 1px solid rgba(108,43,217,0.3);
+    }
+
+    .firetv-badge {
+      background: var(--fire-glow);
+      color: #ffab91;
+      border: 1px solid rgba(255,78,0,0.3);
+    }
+
+    .tv-name {
+      font-family: var(--display);
+      font-size: 1rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .tv-ip {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      color: var(--text-dim);
+    }
+
+    .card-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      transition: background 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .status-dot.online {
+      background: var(--green);
+      box-shadow: 0 0 8px rgba(0,230,118,0.6);
+    }
+
+    .status-dot.offline {
+      background: var(--red);
+    }
+
+    .icon-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text-dim);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      transition: all 0.15s ease;
+    }
+
+    .icon-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Card Body */
+    .card-body {
+      padding: 16px;
+    }
+
+    /* YouTube Row */
+    .youtube-row {
+      margin-bottom: 14px;
+    }
+
+    .yt-card-btn {
+      width: 100%;
+      padding: 8px;
+      background: rgba(255,0,0,0.08);
+      border: 1px solid rgba(255,0,0,0.2);
+      border-radius: 7px;
+      color: #ff6b6b;
+      font-family: var(--ui);
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .yt-card-btn:hover {
+      background: rgba(255,0,0,0.15);
+      border-color: rgba(255,0,0,0.5);
+      color: #ff4d4d;
+    }
+
+    /* Remote control layout */
+    .remote {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .remote-row {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .rkey {
+      flex: 1;
+      min-width: 0;
+      padding: 10px 6px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-family: var(--ui);
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      text-align: center;
+      user-select: none;
+    }
+
+    .rkey:hover {
+      border-color: var(--accent);
+      background: var(--accent-glow);
+      color: var(--accent);
+    }
+
+    .rkey:active {
+      transform: scale(0.92);
+      background: rgba(0,180,255,0.25);
+    }
+
+    .rkey.nav { font-size: 1.1rem; }
+
+    .rkey.ok {
+      background: var(--accent2);
+      border-color: var(--accent);
+      color: #fff;
+      font-size: 0.75rem;
+    }
+
+    .rkey.ok:hover {
+      background: var(--accent);
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+
+    .rkey.power {
+      border-color: rgba(255,23,68,0.4);
+      color: var(--red);
+    }
+
+    .rkey.power:hover {
+      background: rgba(255,23,68,0.1);
+      border-color: var(--red);
+      box-shadow: 0 0 12px rgba(255,23,68,0.2);
+    }
+
+    .rkey.mute {
+      color: var(--text-dim);
+    }
+
+    /* Nav D-pad area */
+    .dpad {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: auto auto auto;
+      gap: 6px;
+      max-width: 160px;
+      margin: 0 auto;
+    }
+
+    .dpad-empty { background: none; border: none; cursor: default; }
+    .dpad-empty:hover { background: none; border: none; box-shadow: none; color: inherit; }
+
+    /* ── Modal ──────────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 500;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border-glow);
+      border-radius: 14px;
+      padding: 28px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      transform: translateY(10px);
+      transition: transform 0.2s ease;
+    }
+
+    .modal-overlay.open .modal { transform: translateY(0); }
+
+    .modal h2 {
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 1.2rem;
+      margin-bottom: 6px;
+      color: #fff;
+    }
+
+    .modal p {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      margin-bottom: 20px;
+      font-family: var(--mono);
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group label {
+      display: block;
+      font-family: var(--ui);
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 10px 12px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 0.88rem;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .form-group select option { background: var(--surface2); }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      justify-content: flex-end;
+    }
+
+    /* ── YouTube Group Modal ─────────────────────────────────────── */
+    .tv-checkbox-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 250px;
+      overflow-y: auto;
+      margin-bottom: 16px;
+    }
+
+    .tv-checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s ease;
+    }
+
+    .tv-checkbox-item:hover { border-color: var(--accent); }
+
+    .tv-checkbox-item input[type="checkbox"] {
+      width: 16px; height: 16px;
+      accent-color: var(--accent);
+    }
+
+    .tv-checkbox-item .tv-checkbox-name {
+      font-family: var(--ui);
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+
+    .tv-checkbox-item .tv-checkbox-type {
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      margin-left: auto;
+    }
+
+    /* ── Spinner ─────────────────────────────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Empty State ─────────────────────────────────────────────── */
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--text-dim);
+    }
+
+    .empty-state .empty-icon { font-size: 3rem; margin-bottom: 16px; opacity: 0.4; }
+
+    .empty-state h3 {
+      font-family: var(--display);
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .empty-state p {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* ── Responsive ──────────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      header { padding: 0 1rem; }
+      .group-bar { padding: 10px 1rem; }
+      main { padding: 1rem; gap: 1rem; }
+      .logo-text { font-size: 1rem; }
+      .header-actions .btn span { display: none; }
+    }
+  </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>TV Remote Hub</h1>
-  <p class="sub">One phone remote for every Roku, Google TV and Fire Stick in the house.</p>
 
-  <div class="card">
-    <p>This site holds the app's files. The remote itself runs on your PC inside Server Hub, because controlling TVs on your Wi-Fi can't be done from a web page. Install it by pasting the address below into Server Hub.</p>
+<!-- ── Header ───────────────────────────────────────────────────── -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">📺</div>
+    <div class="logo-text"><span>6TV</span> Control Hub</div>
   </div>
-
-  <h2>Paste this into Server Hub's Add an app</h2>
-  <div class="copy">
-    <code id="addr"></code>
-    <button id="copy">Copy</button>
+  <div class="header-actions">
+    <button class="btn" onclick="pingAll()">🔍 <span>Ping All</span></button>
+    <button class="btn btn-primary" onclick="openAddModal()">+ <span>Add TV</span></button>
   </div>
+</header>
 
-  <h2>Steps</h2>
-  <div class="card">
-    <ol><li>Have Server Hub running on the PC.</li><li>Open Server Hub on your phone and paste the address above into Add an app.</li><li>Tap Install app. It downloads, gets a port and starts.</li><li>Open the app's link from its card and add that to your home screen.</li><li>Add your TVs, or tap scan to find Rokus automatically.</li></ol>
-  </div>
-
-  <p class="note" style="margin-top:26px">Rokus need only their IP. Google TVs and Fire Sticks need ADB on the PC plus a one-time Allow on the TV.</p>
+<!-- ── Group Control Bar ─────────────────────────────────────────── -->
+<div class="group-bar">
+  <span class="group-bar-label">All TVs:</span>
+  <button class="group-btn" onclick="groupCommand('power')" title="Power all TVs">
+    ⏻ Power All
+  </button>
+  <button class="group-btn" onclick="groupCommand('home')" title="Home on all TVs">
+    ⌂ Home All
+  </button>
+  <button class="group-btn" onclick="groupCommand('mute')" title="Mute all TVs">
+    🔇 Mute All
+  </button>
+  <button class="group-btn yt-btn" onclick="openYouTubeModal()" title="Open YouTube on selected TVs">
+    ▶ YouTube on Selected…
+  </button>
 </div>
+
+<!-- ── TV Cards Grid ─────────────────────────────────────────────── -->
+<main id="tv-grid">
+  <div class="empty-state">
+    <div class="empty-icon">📡</div>
+    <h3>Loading TVs…</h3>
+  </div>
+</main>
+
+<!-- ── Add / Edit TV Modal ───────────────────────────────────────── -->
+<div class="modal-overlay" id="tv-modal" onclick="closeModal(event, 'tv-modal')">
+  <div class="modal">
+    <h2 id="modal-title">Add TV</h2>
+    <p id="modal-subtitle">Enter the details for your TV or streaming device.</p>
+    <input type="hidden" id="edit-tv-id" />
+    <div class="form-group">
+      <label>Display Name</label>
+      <input type="text" id="tv-name-input" placeholder="e.g. Living Room Roku" />
+    </div>
+    <div class="form-group">
+      <label>IP Address</label>
+      <input type="text" id="tv-ip-input" placeholder="e.g. 192.168.1.101" />
+    </div>
+    <div class="form-group">
+      <label>Device Type</label>
+      <select id="tv-type-input">
+        <option value="roku">Roku (Roku TV, Roku Ultra, etc.)</option>
+        <option value="firetv">Fire TV / Fire Stick</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModalById('tv-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTV()">Save TV</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── YouTube Group Modal ───────────────────────────────────────── -->
+<div class="modal-overlay" id="yt-modal" onclick="closeModal(event, 'yt-modal')">
+  <div class="modal">
+    <h2>Open YouTube</h2>
+    <p>Select which TVs to open YouTube on.</p>
+    <div class="tv-checkbox-list" id="yt-tv-list"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModalById('yt-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="sendYouTubeGroup()">▶ Open YouTube</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast Container ───────────────────────────────────────────── -->
+<div id="toast-container"></div>
+
 <script>
-const addr = location.origin + location.pathname.replace(/\/?$/, "/");
-document.getElementById("addr").textContent = addr;
-document.getElementById("copy").onclick = async (e) => {
-  try { await navigator.clipboard.writeText(addr); e.target.textContent = "Copied"; }
-  catch { e.target.textContent = "Select it"; }
-  setTimeout(() => (e.target.textContent = "Copy"), 1500);
-};
+// ── State ─────────────────────────────────────────────────────────
+let tvs = [];
+
+// ── API Helpers ───────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+  };
+  if (body) opts.body = JSON.stringify(body);
+
+  const res = await fetch(path, opts);
+  const data = await res.json();
+  if (!res.ok && !data.success) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+// ── Toast Notifications ───────────────────────────────────────────
+function toast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = message;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+// ── Load & Render TVs ─────────────────────────────────────────────
+async function loadTVs() {
+  tvs = await api('GET', '/api/tvs');
+  renderGrid();
+}
+
+function renderGrid() {
+  const grid = document.getElementById('tv-grid');
+
+  if (tvs.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📺</div>
+        <h3>No TVs Added Yet</h3>
+        <p>Click "+ Add TV" in the top right to get started.</p>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = tvs.map(tv => buildCard(tv)).join('');
+}
+
+function buildCard(tv) {
+  const isRoku = tv.type === 'roku';
+  const badgeClass = isRoku ? 'roku-badge' : 'firetv-badge';
+  const badgeLabel = isRoku ? 'ROKU' : 'FIRE TV';
+  const cardClass = isRoku ? 'roku-card' : 'firetv-card';
+
+  return `
+  <div class="tv-card ${cardClass}" id="card-${tv.id}">
+    <div class="card-header">
+      <div class="card-title-group">
+        <span class="device-badge ${badgeClass}">${badgeLabel}</span>
+        <div>
+          <div class="tv-name">${escHtml(tv.name)}</div>
+          <div class="tv-ip">${escHtml(tv.ip)}</div>
+        </div>
+      </div>
+      <div class="card-header-actions">
+        <div class="status-dot" id="dot-${tv.id}" title="Connection status"></div>
+        <button class="icon-btn" onclick="pingOne('${tv.id}')" title="Test connection">🔍</button>
+        <button class="icon-btn" onclick="openEditModal('${tv.id}')" title="Edit">✏️</button>
+        <button class="icon-btn btn-danger" onclick="deleteTV('${tv.id}')" title="Delete">🗑</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="youtube-row">
+        <button class="yt-card-btn" onclick="sendYouTube('${tv.id}')">
+          ▶ Open YouTube
+        </button>
+      </div>
+      <div class="remote">
+        <!-- Row 1: Power + Home + Back -->
+        <div class="remote-row">
+          <button class="rkey power" onclick="send('${tv.id}','power')">⏻ Power</button>
+          <button class="rkey" onclick="send('${tv.id}','home')">⌂ Home</button>
+          <button class="rkey" onclick="send('${tv.id}','back')">↩ Back</button>
+        </div>
+        <!-- D-Pad -->
+        <div class="dpad">
+          <div class="rkey dpad-empty"></div>
+          <button class="rkey nav" onclick="send('${tv.id}','up')">▲</button>
+          <div class="rkey dpad-empty"></div>
+          <button class="rkey nav" onclick="send('${tv.id}','left')">◀</button>
+          <button class="rkey ok" onclick="send('${tv.id}','ok')">OK</button>
+          <button class="rkey nav" onclick="send('${tv.id}','right')">▶</button>
+          <div class="rkey dpad-empty"></div>
+          <button class="rkey nav" onclick="send('${tv.id}','down')">▼</button>
+          <div class="rkey dpad-empty"></div>
+        </div>
+        <!-- Row 3: Volume + Mute -->
+        <div class="remote-row">
+          <button class="rkey" onclick="send('${tv.id}','volumeup')">🔊 Vol+</button>
+          <button class="rkey mute" onclick="send('${tv.id}','mute')">🔇 Mute</button>
+          <button class="rkey" onclick="send('${tv.id}','volumedown')">🔉 Vol−</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Send Command ──────────────────────────────────────────────────
+async function send(tvId, command) {
+  const tv = tvs.find(t => t.id === tvId);
+  try {
+    await api('POST', `/api/control/${tvId}/${command}`);
+    toast(`✓ ${command.toUpperCase()} → ${tv ? tv.name : tvId}`, 'success');
+  } catch (err) {
+    toast(`✗ ${tv ? tv.name : tvId}: ${err.message}`, 'error');
+  }
+}
+
+async function sendYouTube(tvId) {
+  const tv = tvs.find(t => t.id === tvId);
+  try {
+    await api('POST', `/api/youtube/${tvId}`);
+    toast(`▶ YouTube launched on ${tv ? tv.name : tvId}`, 'success');
+  } catch (err) {
+    toast(`✗ YouTube failed on ${tv ? tv.name : tvId}: ${err.message}`, 'error');
+  }
+}
+
+// ── Group Commands ────────────────────────────────────────────────
+async function groupCommand(command) {
+  toast(`Sending ${command.toUpperCase()} to all TVs…`);
+  try {
+    const data = await api('POST', `/api/group/${command}`);
+    const ok = data.results.filter(r => r.success).length;
+    const fail = data.results.filter(r => !r.success).length;
+    if (fail === 0) {
+      toast(`✓ ${command.toUpperCase()} sent to all ${ok} TVs`, 'success');
+    } else {
+      toast(`⚠ ${ok} OK, ${fail} failed. Check IPs.`, 'error');
+    }
+  } catch (err) {
+    toast(`✗ Group command failed: ${err.message}`, 'error');
+  }
+}
+
+// ── Ping ──────────────────────────────────────────────────────────
+async function pingOne(tvId) {
+  const dot = document.getElementById(`dot-${tvId}`);
+  if (dot) dot.className = 'status-dot'; // reset
+
+  try {
+    const data = await api('POST', `/api/ping/${tvId}`);
+    if (dot) dot.className = `status-dot ${data.online ? 'online' : 'offline'}`;
+    toast(data.online ? `✓ ${data.tv} is online` : `✗ ${data.tv} is offline or unreachable`, data.online ? 'success' : 'error');
+  } catch (err) {
+    if (dot) dot.className = 'status-dot offline';
+    toast(`✗ Ping failed: ${err.message}`, 'error');
+  }
+}
+
+async function pingAll() {
+  toast('Pinging all TVs…');
+  for (const tv of tvs) {
+    pingOne(tv.id);
+  }
+}
+
+// ── YouTube Group Modal ───────────────────────────────────────────
+function openYouTubeModal() {
+  const list = document.getElementById('yt-tv-list');
+  list.innerHTML = tvs.map(tv => `
+    <label class="tv-checkbox-item">
+      <input type="checkbox" value="${tv.id}" checked />
+      <span class="tv-checkbox-name">${escHtml(tv.name)}</span>
+      <span class="tv-checkbox-type">${tv.type.toUpperCase()} · ${tv.ip}</span>
+    </label>
+  `).join('');
+  openModalById('yt-modal');
+}
+
+async function sendYouTubeGroup() {
+  const checked = [...document.querySelectorAll('#yt-tv-list input:checked')].map(i => i.value);
+  if (checked.length === 0) { toast('Select at least one TV', 'error'); return; }
+
+  closeModalById('yt-modal');
+  toast('Opening YouTube…');
+
+  try {
+    const data = await api('POST', '/api/group/youtube', { ids: checked });
+    const ok = data.results.filter(r => r.success).length;
+    const fail = data.results.filter(r => !r.success).length;
+    if (fail === 0) {
+      toast(`▶ YouTube opened on ${ok} TV${ok !== 1 ? 's' : ''}`, 'success');
+    } else {
+      toast(`⚠ YouTube: ${ok} OK, ${fail} failed`, 'error');
+    }
+  } catch (err) {
+    toast(`✗ YouTube group failed: ${err.message}`, 'error');
+  }
+}
+
+// ── Add / Edit Modal ──────────────────────────────────────────────
+function openAddModal() {
+  document.getElementById('modal-title').textContent = 'Add TV';
+  document.getElementById('modal-subtitle').textContent = 'Enter the details for your TV or streaming device.';
+  document.getElementById('edit-tv-id').value = '';
+  document.getElementById('tv-name-input').value = '';
+  document.getElementById('tv-ip-input').value = '';
+  document.getElementById('tv-type-input').value = 'roku';
+  openModalById('tv-modal');
+}
+
+function openEditModal(tvId) {
+  const tv = tvs.find(t => t.id === tvId);
+  if (!tv) return;
+  document.getElementById('modal-title').textContent = 'Edit TV';
+  document.getElementById('modal-subtitle').textContent = `Editing: ${tv.name}`;
+  document.getElementById('edit-tv-id').value = tvId;
+  document.getElementById('tv-name-input').value = tv.name;
+  document.getElementById('tv-ip-input').value = tv.ip;
+  document.getElementById('tv-type-input').value = tv.type;
+  openModalById('tv-modal');
+}
+
+async function saveTV() {
+  const id = document.getElementById('edit-tv-id').value;
+  const name = document.getElementById('tv-name-input').value.trim();
+  const ip = document.getElementById('tv-ip-input').value.trim();
+  const type = document.getElementById('tv-type-input').value;
+
+  if (!name || !ip) {
+    toast('Name and IP are required', 'error');
+    return;
+  }
+
+  // Basic IP validation
+  if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip)) {
+    toast('IP address looks invalid (format: 192.168.x.x)', 'error');
+    return;
+  }
+
+  try {
+    if (id) {
+      await api('PUT', `/api/tvs/${id}`, { name, ip, type });
+      toast(`✓ Updated "${name}"`, 'success');
+    } else {
+      await api('POST', '/api/tvs', { name, ip, type });
+      toast(`✓ Added "${name}"`, 'success');
+    }
+    closeModalById('tv-modal');
+    await loadTVs();
+  } catch (err) {
+    toast(`✗ Save failed: ${err.message}`, 'error');
+  }
+}
+
+async function deleteTV(tvId) {
+  const tv = tvs.find(t => t.id === tvId);
+  if (!confirm(`Remove "${tv ? tv.name : 'this TV'}" from the dashboard?`)) return;
+
+  try {
+    await api('DELETE', `/api/tvs/${tvId}`);
+    toast(`Removed "${tv ? tv.name : tvId}"`, 'success');
+    await loadTVs();
+  } catch (err) {
+    toast(`✗ Delete failed: ${err.message}`, 'error');
+  }
+}
+
+// ── Modal Helpers ─────────────────────────────────────────────────
+function openModalById(id) {
+  document.getElementById(id).classList.add('open');
+}
+
+function closeModalById(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+function closeModal(event, id) {
+  if (event.target === event.currentTarget) closeModalById(id);
+}
+
+// ── Keyboard shortcuts ────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeModalById('tv-modal');
+    closeModalById('yt-modal');
+  }
+});
+
+// ── Init ──────────────────────────────────────────────────────────
+loadTVs();
 </script>
 </body>
 </html>

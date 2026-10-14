@@ -18,7 +18,7 @@ const TVS_FILE = path.join(__dirname, "tvs.json");
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(__dirname));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
